@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: fake-apk-ml-api
+    env: docker
+    autoDeploy: false
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: ML_FAKE_THRESHOLD
+        value: "0.61"
+      - key: ML_AGGRESSIVE
+        value: "0"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+
+  - type: web
+    name: fake-apk-django
+    env: docker
+    autoDeploy: false
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    envVars:
+      - key: ML_SERVICE_URL
+        fromService:
+          type: web
+          name: fake-apk-ml-api
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: PYTHONUNBUFFERED
+        value: "1"
+

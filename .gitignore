@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Project artifacts
+models/
+artifacts/
+data/
+!data/.gitkeep
+backend/db.sqlite3
+backend/.venv/
+
+# Streamlit, MLflow, reports
+mlruns/
+scan_results.csv
+scan_results.xlsx
+*.xlsx
+*.csv
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS / misc
+.env
+.DS_Store
+
+
+
+scan_results/
+!models/xgb_model.joblib
