@@ -6,12 +6,16 @@ __pycache__/
 venv/
 
 # Project artifacts
-models/
 artifacts/
 data/
 !data/.gitkeep
 backend/db.sqlite3
 backend/.venv/
+
+# Models (keep trained model for deployment)
+models/
+!models/xgb_model.joblib
+!models/novelty.joblib
 
 # Streamlit, MLflow, reports
 mlruns/
@@ -31,4 +35,3 @@ scan_results.xlsx
 
 
 scan_results/
-!models/xgb_model.joblib

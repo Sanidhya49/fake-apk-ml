@@ -39,6 +39,15 @@ fake-apk-ml/
 pip install -r requirements.txt
 ```
 
+**Note:** If you encounter compilation errors on Windows, try installing packages individually:
+```bash
+pip install androguard==4.1.3
+pip install pandas==2.2.2
+pip install scikit-learn==1.5.1
+pip install xgboost==2.1.0
+# ... continue with other packages
+```
+
 2) Prepare data:
 
 - Place APKs under `data/legit/` and `data/fake/` (create these folders if they do not exist). Example:
