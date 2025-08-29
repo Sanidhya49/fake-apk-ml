@@ -132,3 +132,25 @@ ML_SERVICE_URL = os.environ.get("ML_SERVICE_URL", "http://localhost:9000")
 
 # CORS (dev-friendly; tighten in prod)
 CORS_ALLOW_ALL_ORIGINS = True
+
+# Specific allowed origins for production
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://fake-apk-detection-frontend.vercel.app",
+    "http://fake-apk-detection-frontend.vercel.app",
+]
+
+# Additional CORS settings for production
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]

@@ -35,7 +35,13 @@ except Exception:
     pass
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "*",  # Keep wildcard for development
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://fake-apk-detection-frontend.vercel.app",
+        "http://fake-apk-detection-frontend.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
