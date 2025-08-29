@@ -91,20 +91,45 @@ python -m ml.train
 
 Saves model to `models/xgb_model.joblib` and SHAP top-3 per-sample contributions to `artifacts/shap_summary.csv`.
 
-6) Run inference API (FastAPI + Uvicorn) and optional Streamlit UI:
+6) Configure AI Analysis (optional):
+
+Create a `.env` file based on `.env.example` and add your Google Gemini API key:
+
+```bash
+cp .env.example .env
+# Edit .env and add your GEMINI_API_KEY
+```
+
+Get your Gemini API key from: https://makersuite.google.com/app/apikey
+
+7) Run inference API (FastAPI + Uvicorn) and optional Streamlit UI:
 
 ```bash
 uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000
 streamlit run ml/streamlit_app.py
 ```
 
-7) Test the API with an APK file:
+8) Test the API with an APK file:
 
 ```bash
 curl -X POST "http://localhost:9000/scan" -F "file=@data/legit/bank1.apk"
 ```
 
 Example JSON response contains the predicted class (`fake` or `legit`), probability, top SHAP contributors, and the feature vector used.
+
+### AI-Powered Analysis Reports
+
+The service integrates with Google's Gemini AI to provide detailed security analysis:
+
+- **PDF Reports**: Generate comprehensive security reports with AI analysis via `/report-pdf` endpoint
+- **Real-time Analysis**: WebSocket support for live progress updates during APK scanning
+- **Detailed Insights**: AI-powered explanations of security threats and recommendations
+
+Features include:
+- Professional PDF reports with security breakdowns
+- AI-generated threat assessments using Google Gemini
+- Base64 PDF encoding for easy frontend integration
+- Comprehensive security recommendations
 
 ### Backend (Django bridge)
 

@@ -6,6 +6,7 @@ joblib==1.4.2
 fastapi==0.112.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
+websockets==12.0
 shap==0.45.1
 mlflow==2.15.1
 rapidfuzz==3.9.7
@@ -17,4 +18,7 @@ django==5.1.5
 djangorestframework==3.14.0
 django-cors-headers==4.4.0
 requests==2.32.3
+reportlab==4.2.5
+jinja2==3.1.4
+weasyprint==62.3
 

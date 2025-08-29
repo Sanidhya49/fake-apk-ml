@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>APK Security Analysis Report</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Arial", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background: #f8f9fa;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: white;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .header {
+        text-align: center;
+        padding: 30px 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        margin: -20px -20px 30px -20px;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+
+      .header .subtitle {
+        font-size: 1.2em;
+        opacity: 0.9;
+      }
+
+      .report-meta {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+        border-left: 5px solid #667eea;
+      }
+
+      .meta-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+
+      .meta-label {
+        font-weight: bold;
+        color: #495057;
+      }
+
+      .meta-value {
+        color: #6c757d;
+      }
+
+      .risk-score {
+        text-align: center;
+        padding: 30px;
+        margin: 30px 0;
+        border-radius: 15px;
+        position: relative;
+      }
+
+      .risk-low {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: white;
+      }
+
+      .risk-medium {
+        background: linear-gradient(135deg, #ffc107, #fd7e14);
+        color: white;
+      }
+
+      .risk-high {
+        background: linear-gradient(135deg, #dc3545, #e83e8c);
+        color: white;
+      }
+
+      .risk-score h2 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+      }
+
+      .probability {
+        font-size: 3em;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+
+      .section {
+        margin: 30px 0;
+        padding: 25px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        border-left: 5px solid #667eea;
+      }
+
+      .section h3 {
+        color: #495057;
+        margin-bottom: 20px;
+        font-size: 1.5em;
+        border-bottom: 2px solid #e9ecef;
+        padding-bottom: 10px;
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .feature-item {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #28a745;
+      }
+
+      .feature-item.risk {
+        border-left-color: #dc3545;
+      }
+
+      .feature-item.warning {
+        border-left-color: #ffc107;
+      }
+
+      .feature-name {
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 5px;
+      }
+
+      .feature-value {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+
+      .shap-analysis {
+        margin-top: 20px;
+      }
+
+      .shap-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px;
+        margin: 8px 0;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #667eea;
+      }
+
+      .shap-positive {
+        border-left-color: #dc3545;
+        background: #fff5f5;
+      }
+
+      .shap-negative {
+        border-left-color: #28a745;
+        background: #f0fff4;
+      }
+
+      .ai-analysis {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        margin: 30px 0;
+      }
+
+      .ai-analysis h3 {
+        color: white;
+        border-bottom-color: rgba(255, 255, 255, 0.3);
+      }
+
+      .ai-content {
+        line-height: 1.8;
+        font-size: 1.1em;
+      }
+
+      .recommendations {
+        background: #e8f5e8;
+        border-left: 5px solid #28a745;
+      }
+
+      .warnings {
+        background: #fff3cd;
+        border-left: 5px solid #ffc107;
+      }
+
+      .dangers {
+        background: #f8d7da;
+        border-left: 5px solid #dc3545;
+      }
+
+      .recommendation-list {
+        list-style: none;
+      }
+
+      .recommendation-list li {
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .recommendation-list li:before {
+        content: "✓ ";
+        color: #28a745;
+        font-weight: bold;
+        margin-right: 10px;
+      }
+
+      .warning-list li:before {
+        content: "⚠ ";
+        color: #ffc107;
+      }
+
+      .danger-list li:before {
+        content: "⚠ ";
+        color: #dc3545;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 40px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+
+      .tech-specs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .spec-item {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+      }
+
+      .spec-value {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #667eea;
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .spec-label {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+
+      .timestamp {
+        text-align: right;
+        color: #6c757d;
+        font-size: 0.9em;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🛡️ APK Security Analysis</h1>
+        <div class="subtitle">Comprehensive Security Assessment Report</div>
+      </div>
+
+      <div class="timestamp">Generated: {{ timestamp }}</div>
+
+      <div class="report-meta">
+        <div class="meta-row">
+          <span class="meta-label">Filename:</span>
+          <span class="meta-value">{{ filename }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Package Name:</span>
+          <span class="meta-value">{{ package_name or 'Unknown' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">App Name:</span>
+          <span class="meta-value">{{ app_name or 'Unknown' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">File Size:</span>
+          <span class="meta-value">{{ file_size or 'Unknown' }}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">SHA256:</span>
+          <span class="meta-value" style="word-break: break-all"
+            >{{ sha256 or 'Unknown' }}</span
+          >
+        </div>
+      </div>
+
+      <div
+        class="risk-score {{ 'risk-low' if risk == 'Green' else ('risk-medium' if risk == 'Amber' else 'risk-high') }}"
+      >
+        <h2>Security Assessment</h2>
+        <div class="probability">{{ "%.1f" | format(probability * 100) }}%</div>
+        <div>
+          <strong>Risk Level: {{ risk }}</strong><br />
+          Classification: {{ prediction.title() }}
+        </div>
+      </div>
+
+      {% if ai_analysis %}
+      <div class="ai-analysis">
+        <h3>🤖 AI-Powered Analysis</h3>
+        <div class="ai-content">{{ ai_analysis | safe }}</div>
+      </div>
+      {% endif %} {% if top_shap %}
+      <div class="section">
+        <h3>🔍 Key Security Factors</h3>
+        <div class="shap-analysis">
+          {% for item in top_shap %}
+          <div
+            class="shap-item {{ 'shap-positive' if item.value > 0 else 'shap-negative' }}"
+          >
+            <span><strong>{{ item.feature }}</strong></span>
+            <span>{{ "%.3f" | format(item.value) }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="section">
+        <h3>📊 Technical Specifications</h3>
+        <div class="tech-specs">
+          <div class="spec-item">
+            <span class="spec-value"
+              >{{ feature_vector.get('min_sdk', 'N/A') }}</span
+            >
+            <span class="spec-label">Min SDK</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-value"
+              >{{ feature_vector.get('target_sdk', 'N/A') }}</span
+            >
+            <span class="spec-label">Target SDK</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-value"
+              >{{ feature_vector.get('num_permissions', 'N/A') }}</span
+            >
+            <span class="spec-label">Permissions</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-value"
+              >{{ feature_vector.get('num_activities', 'N/A') }}</span
+            >
+            <span class="spec-label">Activities</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-value"
+              >{{ feature_vector.get('num_services', 'N/A') }}</span
+            >
+            <span class="spec-label">Services</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-value"
+              >{{ feature_vector.get('file_size_mb', 'N/A') }}MB</span
+            >
+            <span class="spec-label">File Size</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>🔒 Security Features Analysis</h3>
+        <div class="feature-grid">
+          {% for key, value in feature_vector.items() %} {% if
+          key.startswith('api_') or key in ['READ_SMS', 'SEND_SMS',
+          'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'INTERNET'] %}
+          <div
+            class="feature-item {{ 'risk' if value == 1 and (key.startswith('api_') or key in ['READ_SMS', 'SEND_SMS', 'SYSTEM_ALERT_WINDOW']) else ('warning' if value == 1 else '') }}"
+          >
+            <div class="feature-name">
+              {{ key.replace('_', ' ').replace('api ', 'API: ').title() }}
+            </div>
+            <div class="feature-value">
+              {{ 'Present' if value == 1 else 'Not Found' }}
+            </div>
+          </div>
+          {% endif %} {% endfor %}
+        </div>
+      </div>
+
+      {% if recommendations %}
+      <div class="section recommendations">
+        <h3>✅ Recommendations</h3>
+        <ul class="recommendation-list">
+          {% for rec in recommendations %}
+          <li>{{ rec }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %} {% if warnings %}
+      <div class="section warnings">
+        <h3>⚠️ Security Warnings</h3>
+        <ul class="recommendation-list warning-list">
+          {% for warning in warnings %}
+          <li>{{ warning }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %} {% if dangers %}
+      <div class="section dangers">
+        <h3>🚨 Critical Security Issues</h3>
+        <ul class="recommendation-list danger-list">
+          {% for danger in dangers %}
+          <li>{{ danger }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="footer">
+        <strong>SecureAPK Detector</strong> - Advanced APK Security Analysis<br />
+        This report was generated using machine learning models and AI
+        analysis.<br />
+        For questions or support, contact our security team.
+      </div>
+    </div>
+  </body>
+</html>
