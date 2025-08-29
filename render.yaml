@@ -2,8 +2,7 @@ services:
   - type: web
     name: fake-apk-ml-api
     env: docker
-    autoDeploy: false
-    plan: starter
+    plan: free
     dockerfilePath: ./Dockerfile
     envVars:
       - key: ML_FAKE_THRESHOLD
@@ -16,8 +15,7 @@ services:
   - type: web
     name: fake-apk-django
     env: docker
-    autoDeploy: false
-    plan: starter
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     envVars:
       - key: ML_SERVICE_URL
