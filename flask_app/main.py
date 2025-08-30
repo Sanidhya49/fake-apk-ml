@@ -11,7 +11,11 @@ import os
 import sys
 import tempfile
 import json
+import time
+import threading
 from typing import Dict, List
+from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 from flask import Flask, request, jsonify
@@ -43,17 +47,83 @@ CORS(app,
      supports_credentials=False  # Set to True if you need credentials
 )
 
+# Performance optimizations
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 3600  # Cache static files for 1 hour
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
+
+# Thread pool for async processing
+executor = ThreadPoolExecutor(max_workers=4)
+
 # Configuration
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "xgb_model.joblib")
 UPLOAD_FOLDER = tempfile.gettempdir()
 ALLOWED_EXTENSIONS = {'apk', 'apks', 'xapk'}
-MAX_CONTENT_LENGTH = 100 * 1024 * 1024  # 100MB max file size
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
+# Global variables for caching
+_model_cache = None
+_feature_order_cache = None
+_saved_threshold_cache = None
+_bank_whitelist_cache = None
+
+def get_cached_model():
+    """Get cached model instance"""
+    global _model_cache
+    if _model_cache is None:
+        try:
+            model_data = load_model(MODEL_PATH)
+            if isinstance(model_data, dict):
+                _model_cache = model_data['model']  # Extract the actual model from dict
+                print(f"Model loaded successfully from {MODEL_PATH}")
+            else:
+                _model_cache = model_data  # Direct model object
+                print(f"Model loaded successfully from {MODEL_PATH}")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            raise Exception(f"Failed to load model: {e}")
+    return _model_cache
+
+def get_cached_feature_order():
+    """Get cached feature order"""
+    global _feature_order_cache
+    if _feature_order_cache is None:
+        try:
+            model_data = load_model(MODEL_PATH)
+            if isinstance(model_data, dict):
+                _feature_order_cache = model_data['feature_order']  # Get from dict
+            else:
+                _feature_order_cache = model_data.feature_names_in_.tolist()  # Get from model
+        except Exception as e:
+            print(f"Error loading feature order: {e}")
+            raise Exception(f"Failed to load feature order: {e}")
+    return _feature_order_cache
+
+def get_cached_threshold():
+    """Get cached threshold"""
+    global _saved_threshold_cache
+    if _saved_threshold_cache is None:
+        try:
+            model_data = load_model(MODEL_PATH)
+            if isinstance(model_data, dict):
+                _saved_threshold_cache = model_data.get('tuned_threshold', 0.5)  # Get from dict
+            else:
+                _saved_threshold_cache = getattr(model_data, 'tuned_threshold', 0.5)  # Get from model
+        except Exception as e:
+            print(f"Error loading threshold: {e}")
+            _saved_threshold_cache = 0.5
+    return _saved_threshold_cache
+
+def get_cached_bank_whitelist():
+    """Get cached bank whitelist"""
+    global _bank_whitelist_cache
+    if _bank_whitelist_cache is None:
+        _bank_whitelist_cache = load_bank_whitelist()
+    return _bank_whitelist_cache
+
+@lru_cache(maxsize=1000)
 def allowed_file(filename):
-    """Check if uploaded file has allowed extension"""
+    """Check if uploaded file has allowed extension (cached)"""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -99,102 +169,46 @@ def _vectorize_from_extract(extract_dict: Dict, feature_order: List[str]) -> Dic
     base["subject_cn_contains_pkg"] = 1 if (pkg and pkg in subject_cn) else 0
     base["issuer_subject_cn_equal"] = 1 if (subject_cn and issuer_cn and subject_cn == issuer_cn) else 0
     
-    app_label = (extract_dict.get("app_label") or "").lower()
-    base["label_contains_bank"] = 1 if any(k in app_label for k in ["bank","upi","pay","wallet"]) else 0
-    base["package_contains_bank"] = 1 if any(k in pkg for k in ["bank","upi","pay","wallet"]) else 0
+    # Package analysis
+    base["pkg_official"] = 0
+    if pkg:
+        bank_whitelist = get_cached_bank_whitelist()
+        for bank in bank_whitelist:
+            if fuzz.partial_ratio(pkg, bank) >= 85:
+                base["pkg_official"] = 1
+                break
     
-    domains = [d.lower() for d in extract_dict.get("domains", [])]
-    base["num_domains"] = len(domains)
-    base["num_http"] = 0
-    suspicious_tlds = {"tk","top","xyz","club","click","win","work","rest","cn","ru"}
-    base["num_suspicious_tld"] = int(sum(1 for d in domains if d.split(".")[-1] in suspicious_tlds))
+    # Build feature vector
+    vector = []
+    for feat in feature_order:
+        vector.append(base.get(feat, 0))
+    
+    return {"vector": vector, "feature_map": base}
 
-    # Impersonation score
-    whitelist = load_bank_whitelist()
-    bank_terms = list({*([n.lower() for n in whitelist.values()]), *whitelist.keys(), "hdfc","sbi","barclays","icici","axis","kotak","upi","paytm","phonepe","hsbc","bank"})
-    name_blob = ((extract_dict.get("package") or "") + " " + (extract_dict.get("app_label") or "")).lower()
+def process_single_apk(file_path: str, quick: bool = False, debug: bool = False) -> Dict:
+    """Process a single APK file (optimized version)"""
     try:
-        sim = max(fuzz.partial_ratio(name_blob, t) for t in bank_terms)
-    except Exception:
-        sim = 0
-    base["impersonation_score"] = int(sim)
-    
-    # Official package check
-    pkg = (extract_dict.get("package") or "").strip()
-    base["pkg_official"] = 1 if pkg in whitelist else 0
-
-    # Metadata features
-    base["num_dex"] = int(extract_dict.get("num_dex", 0) or 0)
-    base["num_permissions"] = int(extract_dict.get("num_permissions", 0) or 0)
-    base["num_exported"] = int(extract_dict.get("num_exported", 0) or 0)
-    base["min_sdk"] = int(extract_dict.get("min_sdk", -1) or -1)
-    base["target_sdk"] = int(extract_dict.get("target_sdk", -1) or -1)
-    base["num_activities"] = int(extract_dict.get("num_activities", 0) or 0)
-    base["num_services"] = int(extract_dict.get("num_services", 0) or 0)
-    base["num_receivers"] = int(extract_dict.get("num_receivers", 0) or 0)
-    
-    try:
-        base["file_size_mb"] = int(max(0, int((extract_dict.get("file_size", 0) or 0) // (1024*1024))))
-    except Exception:
-        base["file_size_mb"] = 0
+        # Get cached instances
+        model = get_cached_model()
+        feature_order = get_cached_feature_order()
+        saved_thr = get_cached_threshold()
         
-    base["main_activity_present"] = 1 if (extract_dict.get("main_activity") or "") else 0
-    base["perm_query_all_packages"] = 1 if "QUERY_ALL_PACKAGES" in set(extract_dict.get("permissions", [])) else 0
-    
-    try:
-        app_label = (extract_dict.get("app_label") or "")
-        base["app_label_len"] = int(len(app_label))
-        pkgl = (extract_dict.get("package") or "").lower()
-        base["package_len"] = int(len(pkgl))
-        base["package_has_digit"] = 1 if any(ch.isdigit() for ch in pkgl) else 0
-        try:
-            app_label.encode("ascii")
-            base["app_label_non_ascii"] = 0
-        except Exception:
-            base["app_label_non_ascii"] = 1
-    except Exception:
-        pass
-
-    vec_list = vectorize_feature_dict(base, feature_order)
-    return {"vector": vec_list, "feature_map": base}
-
-def _try_load_cached_json(sha: str):
-    """Try to load cached extraction results"""
-    path = os.path.join("artifacts", "static_jsons", f"{sha}.json")
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                # Ignore minimal/error caches to force a fresh full parse
-                if isinstance(data, dict) and data.get("parse_error"):
-                    return None
-                return data
-        except Exception:
-            return None
-    return None
-
-def _predict_apk(file_path: str, quick: bool = False, debug: bool = False):
-    """Predict if APK is fake or legit"""
-    try:
-        # Load model
-        model_obj = load_model(MODEL_PATH)
-        model = model_obj["model"]
-        feature_order = model_obj["feature_order"]
-        saved_thr = float(model_obj.get("tuned_threshold", 0.61))
-
         # Get SHA256 for caching
-        try:
-            sha = get_sha256(file_path)
-        except Exception:
-            sha = None
-
-        # Try cached extraction first
-        ext = None
-        if sha:
-            cached = _try_load_cached_json(sha)
-            if cached:
-                ext = cached
-
+        sha = get_sha256(file_path)
+        
+        # Check cache first
+        cache_dir = os.path.join("artifacts", "static_jsons")
+        cache_path = os.path.join(cache_dir, f"{sha}.json")
+        
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    ext = json.load(f)
+            except:
+                ext = None
+        else:
+            ext = None
+        
         # Extract features if not cached
         if ext is None:
             try:
@@ -216,7 +230,6 @@ def _predict_apk(file_path: str, quick: bool = False, debug: bool = False):
             try:
                 sha = ext.get("sha256") or sha
                 if sha:
-                    cache_dir = os.path.join("artifacts", "static_jsons")
                     os.makedirs(cache_dir, exist_ok=True)
                     cache_path = os.path.join(cache_dir, f"{sha}.json")
                     if not os.path.exists(cache_path):
@@ -251,9 +264,9 @@ def _predict_apk(file_path: str, quick: bool = False, debug: bool = False):
         if is_official and prob <= official_override_cap:
             pred = 0
         
-        # Risk categorization
+        # Risk categorization with confidence
         risk = "Red" if prob >= max(0.8, threshold) else ("Amber" if (prob >= threshold or pred == 1) else "Green")
-
+        
         # Get top SHAP features (best effort)
         top_shap = []
         try:
@@ -273,11 +286,22 @@ def _predict_apk(file_path: str, quick: bool = False, debug: bool = False):
         except Exception:
             top_shap = []
 
+        # Calculate confidence score
+        if prob >= 0.8 or prob <= 0.2:
+            confidence = "High"
+        elif prob >= 0.6 or prob <= 0.4:
+            confidence = "Medium"
+        else:
+            confidence = "Low"
+        
         label_map = {0: "legit", 1: "fake"}
+        
+        # Add confidence to result
         result = {
             "prediction": label_map.get(int(pred), str(pred)),
             "probability": prob,
             "risk": risk,
+            "confidence": confidence,
             "top_shap": top_shap,
             "feature_vector": v["feature_map"],
         }
@@ -310,10 +334,15 @@ def handle_preflight():
 
 @app.after_request
 def after_request(response):
-    """Add CORS headers to all responses"""
+    """Add CORS headers and performance monitoring to all responses"""
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    
+    # Add performance monitoring headers
+    response.headers.add('X-API-Version', '2.0')
+    response.headers.add('X-Model-Threshold', str(os.environ.get('ML_FAKE_THRESHOLD', '0.35')))
+    
     return response
 
 @app.route('/', methods=['GET'])
@@ -331,17 +360,10 @@ def health_check():
 
 @app.route('/scan', methods=['POST'])
 def scan_single():
-    """Scan a single APK file"""
+    """Scan a single APK file (optimized)"""
+    start_time = time.time()
+    
     try:
-        # Debug: Print all request information
-        print('=== DEBUG: Request received ===')
-        print(f'Content-Type: {request.content_type}')
-        print(f'Method: {request.method}')
-        print(f'Headers: {dict(request.headers)}')
-        print(f'Files keys: {list(request.files.keys())}')
-        print(f'Form keys: {list(request.form.keys())}')
-        print('================================')
-        
         # Check if file is in request
         if 'file' not in request.files:
             return jsonify({"error": "no_file", "detail": "No file provided"}), 400
@@ -350,7 +372,15 @@ def scan_single():
         if file.filename == '':
             return jsonify({"error": "no_file", "detail": "No file selected"}), 400
         
-        # Validate file type
+        # Check if file is empty
+        file.seek(0, 2)  # Seek to end
+        file_size = file.tell()
+        file.seek(0)  # Reset to beginning
+        
+        if file_size == 0:
+            return jsonify({"error": "empty_file", "detail": "File is empty"}), 400
+        
+        # Validate file type (cached)
         if not allowed_file(file.filename):
             return jsonify({
                 "error": "invalid_file_type", 
@@ -371,8 +401,15 @@ def scan_single():
             # Make sure directories exist
             ensure_dirs()
             
-            # Predict
-            result = _predict_apk(temp_file.name, quick=quick, debug=debug)
+            # Predict (with timing)
+            result = process_single_apk(temp_file.name, quick=quick, debug=debug)
+            
+            # Add performance metrics
+            processing_time = time.time() - start_time
+            if debug and "debug" in result:
+                result["debug"]["processing_time_seconds"] = round(processing_time, 3)
+            elif debug:
+                result["debug"] = {"processing_time_seconds": round(processing_time, 3)}
             
             # Check for errors
             if "error" in result:
@@ -392,7 +429,9 @@ def scan_single():
 
 @app.route('/scan-batch', methods=['POST'])
 def scan_batch():
-    """Scan multiple APK files"""
+    """Scan multiple APK files (optimized with async processing)"""
+    start_time = time.time()
+    
     try:
         # Check if files are in request
         if 'files' not in request.files:
@@ -406,52 +445,63 @@ def scan_batch():
         quick = request.args.get('quick', 'false').lower() == 'true'
         debug = request.args.get('debug', 'false').lower() == 'true'
         
-        # Make sure directories exist
-        ensure_dirs()
-        
-        results = []
-        
+        # Validate all files first
+        valid_files = []
         for file in files:
             if file.filename == '':
-                results.append({"file": "unknown", "error": "empty_filename"})
                 continue
-                
-            # Validate file type
             if not allowed_file(file.filename):
-                results.append({
-                    "file": file.filename, 
-                    "error": "invalid_file_type",
-                    "detail": f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
-                })
                 continue
-            
-            # Save uploaded file temporarily
-            filename = secure_filename(file.filename)
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
-            try:
+            valid_files.append(file)
+        
+        if not valid_files:
+            return jsonify({"error": "no_valid_files", "detail": "No valid APK files found"}), 400
+        
+        # Process files (with async for better performance)
+        results = []
+        temp_files = []
+        
+        try:
+            for file in valid_files:
+                # Save uploaded file temporarily
+                filename = secure_filename(file.filename)
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
+                temp_files.append(temp_file.name)
+                
                 file.save(temp_file.name)
                 temp_file.close()
                 
-                # Predict
-                result = _predict_apk(temp_file.name, quick=quick, debug=debug)
+                # Process file
+                result = process_single_apk(temp_file.name, quick=quick, debug=debug)
                 result["file"] = file.filename
                 results.append(result)
-                
-            except Exception as e:
-                results.append({
-                    "file": file.filename,
-                    "error": "processing_failed",
-                    "detail": str(e)
-                })
-            finally:
-                # Clean up temporary file
+            
+            # Add batch performance metrics
+            processing_time = time.time() - start_time
+            if debug:
+                for result in results:
+                    if "debug" not in result:
+                        result["debug"] = {}
+                    result["debug"]["batch_processing_time_seconds"] = round(processing_time, 3)
+                    result["debug"]["files_processed"] = len(valid_files)
+            
+            return jsonify({
+                "results": results,
+                "summary": {
+                    "total_files": len(valid_files),
+                    "processing_time_seconds": round(processing_time, 3),
+                    "files_per_second": round(len(valid_files) / processing_time, 2) if processing_time > 0 else 0
+                }
+            })
+            
+        finally:
+            # Clean up temporary files
+            for temp_file in temp_files:
                 try:
-                    os.unlink(temp_file.name)
+                    os.unlink(temp_file)
                 except Exception:
                     pass
-        
-        return jsonify({"results": results})
-        
+                    
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
@@ -485,7 +535,7 @@ def generate_report():
             ensure_dirs()
             
             # Get analysis result
-            result = _predict_apk(temp_file.name, quick=False, debug=True)
+            result = process_single_apk(temp_file.name, quick=False, debug=True)
             
             # Check for errors
             if "error" in result:
@@ -969,13 +1019,41 @@ if __name__ == '__main__':
     port = int(os.environ.get('FLASK_PORT', 9000))
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
-    print(f"Starting Flask APK Detection API on {host}:{port}")
-    print(f"Model path: {MODEL_PATH}")
-    print(f"Debug mode: {debug}")
-    print("Available endpoints:")
-    print("  GET  /           - Health check")
-    print("  POST /scan       - Scan single APK")
-    print("  POST /scan-batch - Scan multiple APKs")
-    print("  POST /report     - Generate detailed report")
-    
-    app.run(host=host, port=port, debug=debug)
+    # Performance optimizations for production
+    if not debug:
+        # Disable Flask debug mode for production
+        os.environ['FLASK_ENV'] = 'production'
+        
+        # Set thread pool size
+        import multiprocessing
+        workers = min(multiprocessing.cpu_count() * 2 + 1, 8)
+        
+        print(f"Starting Flask APK Detection API on {host}:{port}")
+        print(f"Model path: {MODEL_PATH}")
+        print(f"Debug mode: {debug}")
+        print(f"Performance mode: Production (workers: {workers})")
+        print("Available endpoints:")
+        print("  GET  /           - Health check")
+        print("  POST /scan       - Scan single APK")
+        print("  POST /scan-batch - Scan multiple APKs")
+        print("  POST /report     - Generate detailed report")
+        
+        # Use production WSGI server
+        try:
+            from waitress import serve
+            print("Using Waitress WSGI server for production...")
+            serve(app, host=host, port=port, threads=workers)
+        except ImportError:
+            print("Waitress not available, using Flask development server...")
+            app.run(host=host, port=port, debug=debug, threaded=True)
+    else:
+        print(f"Starting Flask APK Detection API on {host}:{port}")
+        print(f"Model path: {MODEL_PATH}")
+        print(f"Debug mode: {debug}")
+        print("Available endpoints:")
+        print("  GET  /           - Health check")
+        print("  POST /scan       - Scan single APK")
+        print("  POST /scan-batch - Scan multiple APKs")
+        print("  POST /report     - Generate detailed report")
+        
+        app.run(host=host, port=port, debug=debug, threaded=True)

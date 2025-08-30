@@ -1,5 +1,29 @@
 services:
-  # Flask ML Backend
+  # FastAPI ML Backend (Primary - Production)
+  fastapi-ml:
+    build: .
+    container_name: fake-apk-fastapi
+    env_file:
+      - .env
+    environment:
+      - ML_FAKE_THRESHOLD=0.35
+      - ML_HEURISTIC_MIN_PROB=0.35
+      - PYTHONHASHSEED=42
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./artifacts:/app/artifacts
+      - ./models:/app/models
+    command: uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000 --workers 2 --log-level warning --no-access-log
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9000/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Flask ML Backend (Alternative - Development)
   flask-ml:
     build: .
     container_name: fake-apk-flask
@@ -7,42 +31,25 @@ services:
       - .env
     environment:
       - FLASK_HOST=0.0.0.0
-      - FLASK_PORT=9000
+      - FLASK_PORT=9001
       - FLASK_DEBUG=false
+      - ML_FAKE_THRESHOLD=0.35
+      - ML_HEURISTIC_MIN_PROB=0.35
+      - PYTHONHASHSEED=42
     ports:
-      - "9000:9000"
+      - "9001:9001"
     volumes:
       - ./artifacts:/app/artifacts
       - ./models:/app/models
     command: python flask_app/main.py
     restart: unless-stopped
+    profiles: ["flask"]
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import requests; requests.get('http://localhost:9000/', timeout=5)",
-        ]
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9001/', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  # FastAPI ML Backend (alternative - can run both)
-  fastapi-ml:
-    build: .
-    container_name: fake-apk-fastapi
-    env_file:
-      - .env
-    ports:
-      - "9001:9000"
-    volumes:
-      - ./artifacts:/app/artifacts
-      - ./models:/app/models
-    command: uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000 --log-level warning --no-access-log
-    restart: unless-stopped
-    profiles: ["fastapi"]
 
   # Streamlit UI (optional)
   streamlit:
@@ -51,15 +58,15 @@ services:
     env_file:
       - .env
     environment:
-      - ML_SERVICE_URL=http://flask-ml:9000
+      - ML_SERVICE_URL=http://fastapi-ml:9000
     depends_on:
-      flask-ml:
+      fastapi-ml:
         condition: service_healthy
     ports:
       - "8501:8501"
     volumes:
       - ./:/app
-    command: streamlit run ml/streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+    command: streamlit run ml/streamlit_drag_drop.py --server.port 8501 --server.address 0.0.0.0
     restart: unless-stopped
     profiles: ["streamlit"]
 

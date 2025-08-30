@@ -184,7 +184,7 @@ def main():
     features_path = args.features
     if not os.path.exists(features_path):
         raise FileNotFoundError(f"{features_path} not found. Run feature_builder first.")
-    
+
     print(f"[DATA] Loading data from {features_path}")
     df = pd.read_csv(features_path)
     
@@ -200,11 +200,11 @@ def main():
     # Prepare features and labels
     feature_cols = _get_feature_columns(df)
     print(f"   Features: {len(feature_cols)} numeric features")
-    
+
     label_map = {"legit": 0, "fake": 1}
     y = df["label"].map(label_map)
     X = df[feature_cols].astype(float).values
-    
+
     # Split data
     X_train, X_test, y_train, y_test = train_test_split(
         X, y.values, 
@@ -231,7 +231,7 @@ def main():
     
     # Train final model
     print("[TRAIN] Training final model...")
-    model.fit(X_train, y_train)
+        model.fit(X_train, y_train)
     
     # Calibration
     if config["enable_calibration"]:
@@ -242,15 +242,15 @@ def main():
                 method=config["calibration_method"], 
                 cv=config["calibration_cv"]
             )
-            calib.fit(X_train, y_train)
+        calib.fit(X_train, y_train)
             final_model = calib
-            model_name += "+cal"
-        except Exception as e:
+        model_name += "+cal"
+    except Exception as e:
             print(f"   Calibration failed ({e}), using raw model")
             final_model = model
     else:
         final_model = model
-    
+
     # Evaluation
     print("[EVAL] Evaluating model...")
     y_pred = final_model.predict(X_test)
@@ -280,10 +280,10 @@ def main():
         
         model_data = {
             "model": final_model,
-            "feature_order": feature_cols,
-            "label_map": {"0": "legit", "1": "fake"},
-            "model_name": model_name,
-            "tuned_threshold": tuned_threshold,
+        "feature_order": feature_cols,
+        "label_map": {"0": "legit", "1": "fake"},
+        "model_name": model_name,
+        "tuned_threshold": tuned_threshold,
             "model_version": config["model_version"],
             "training_config": config,
             "metrics": {
@@ -311,28 +311,28 @@ def main():
     # Novelty detector
     if config["enable_novelty_detector"]:
         print("[NOVELTY] Creating novelty detector...")
-        try:
-            legit_mask = (y == 0).values
-            X_legit = df.loc[legit_mask, feature_cols].astype(float).values
+    try:
+        legit_mask = (y == 0).values
+        X_legit = df.loc[legit_mask, feature_cols].astype(float).values
             
             if X_legit.shape[0] >= config["min_legit_samples"]:
                 nov = IsolationForest(
                     random_state=config["random_state"], 
                     contamination=config["novelty_contamination"]
                 )
-                nov.fit(X_legit)
+            nov.fit(X_legit)
                 
                 novelty_path = "models/novelty.joblib"
-                joblib.dump({
-                    "model": nov,
-                    "feature_order": feature_cols,
-                    "type": "isolation_forest",
+            joblib.dump({
+                "model": nov,
+                "feature_order": feature_cols,
+                "type": "isolation_forest",
                     "training_date": datetime.now().isoformat()
                 }, novelty_path)
                 print(f"   Novelty detector saved to: {novelty_path}")
-            else:
+        else:
                 print(f"   Skipping novelty detector (need {config['min_legit_samples']}+ legit samples, got {X_legit.shape[0]})")
-        except Exception as e:
+    except Exception as e:
             print(f"   Novelty detector failed: {e}")
     
     # SHAP analysis
@@ -347,41 +347,41 @@ def main():
             y_test_shap = y_test[:max_samples]
             
             # Get SHAP values
-            try:
-                explainer = shap.TreeExplainer(model)
+        try:
+            explainer = shap.TreeExplainer(model)
                 shap_values = explainer.shap_values(X_test_shap)
-                if isinstance(shap_values, list):
-                    sv = shap_values[1]
-                else:
-                    sv = shap_values
-            except Exception:
+            if isinstance(shap_values, list):
+                sv = shap_values[1]
+            else:
+                sv = shap_values
+        except Exception:
                 # Fallback to KernelExplainer
-                background = X_train[:50]
-                explainer = shap.KernelExplainer(model.predict_proba, background)
+            background = X_train[:50]
+            explainer = shap.KernelExplainer(model.predict_proba, background)
                 sv = explainer.shap_values(X_test_shap)[1]
-            
+
             # Generate top features summary
-            top_rows = []
+        top_rows = []
             for i in range(len(X_test_shap)):
-                row_sv = sv[i]
+            row_sv = sv[i]
                 top_idx = np.argsort(np.abs(row_sv))[::-1][:config["shap_top_features"]]
-                for rank, j in enumerate(top_idx, 1):
-                    top_rows.append({
-                        "sample_index": int(i),
-                        "feature": feature_cols[j],
-                        "shap_value": float(row_sv[j]),
-                        "rank": int(rank),
-                    })
+            for rank, j in enumerate(top_idx, 1):
+                top_rows.append({
+                    "sample_index": int(i),
+                    "feature": feature_cols[j],
+                    "shap_value": float(row_sv[j]),
+                    "rank": int(rank),
+                })
             
-            shap_df = pd.DataFrame(top_rows)
+        shap_df = pd.DataFrame(top_rows)
             shap_path = os.path.join("artifacts", "shap_summary.csv")
             os.makedirs(os.path.dirname(shap_path), exist_ok=True)
             shap_df.to_csv(shap_path, index=False)
             print(f"   SHAP summary saved to: {shap_path}")
             
-        except Exception as e:
+    except Exception as e:
             print(f"   SHAP analysis failed: {e}")
-    
+
     # MLflow tracking (optional)
     try:
         import mlflow
