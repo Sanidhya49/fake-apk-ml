@@ -1034,8 +1034,48 @@ async def report_form():
 async def generate_pdf_report(file: UploadFile = File(...)):
     """Generate a comprehensive PDF report with AI analysis"""
     try:
-        # First, analyze the APK
-        analysis_result = await scan_apk(file, quick=False, debug=True)
+        # Add timeout wrapper for the entire PDF generation process
+        return await asyncio.wait_for(
+            _generate_pdf_report_impl(file), 
+            timeout=300.0  # 5 minutes timeout
+        )
+    except asyncio.TimeoutError:
+        return JSONResponse({
+            "success": False,
+            "error": "PDF generation timed out. The APK file may be too complex to analyze.",
+            "details": "Please try with a simpler APK file or contact support."
+        }, status_code=408)
+    except Exception as e:
+        return JSONResponse({
+            "success": False,
+            "error": f"PDF generation failed: {str(e)}",
+            "details": "An unexpected error occurred during PDF generation."
+        }, status_code=500)
+
+
+async def _generate_pdf_report_impl(file: UploadFile):
+    """Internal implementation of PDF report generation with error handling"""
+    try:
+        # First, analyze the APK with timeout
+        try:
+            analysis_result = await asyncio.wait_for(
+                scan_apk(file, quick=False, debug=True),
+                timeout=180.0  # 3 minutes timeout for APK analysis
+            )
+        except asyncio.TimeoutError:
+            # Fallback to quick analysis if full analysis times out
+            print("Full APK analysis timed out, trying quick analysis...")
+            try:
+                analysis_result = await asyncio.wait_for(
+                    scan_apk(file, quick=True, debug=True),
+                    timeout=60.0  # 1 minute timeout for quick analysis
+                )
+            except asyncio.TimeoutError:
+                return JSONResponse({
+                    "success": False,
+                    "error": "APK analysis timed out",
+                    "details": "The APK file is too complex or corrupted to analyze. Please try a different file."
+                }, status_code=408)
         
         if isinstance(analysis_result, JSONResponse):
             # Extract the analysis data
@@ -1058,8 +1098,16 @@ async def generate_pdf_report(file: UploadFile = File(...)):
             "size": getattr(file, 'size', 'Unknown'),
         }
         
-        # Generate AI analysis
-        ai_analysis = await generate_gemini_analysis(analysis_data, file_info)
+        # Generate AI analysis with timeout
+        try:
+            ai_analysis = await asyncio.wait_for(
+                generate_gemini_analysis(analysis_data, file_info),
+                timeout=30.0  # 30 seconds timeout for AI analysis
+            )
+        except asyncio.TimeoutError:
+            ai_analysis = "AI analysis timed out. Basic security assessment provided."
+        except Exception as e:
+            ai_analysis = f"AI analysis unavailable: {str(e)}"
         
         # Generate recommendations
         recommendations, warnings, dangers = generate_security_recommendations(analysis_data)
@@ -1069,7 +1117,8 @@ async def generate_pdf_report(file: UploadFile = File(...)):
         if not os.path.exists(template_path):
             return JSONResponse({
                 "success": False,
-                "error": "PDF template not found"
+                "error": "PDF template not found",
+                "details": "The report template file is missing from the server."
             }, status_code=500)
         
         with open(template_path, "r", encoding="utf-8") as f:
@@ -1098,8 +1147,24 @@ async def generate_pdf_report(file: UploadFile = File(...)):
         template = Template(template_content)
         rendered_html = template.render(**template_data)
         
-        # Generate PDF from HTML
-        pdf_bytes = weasyprint.HTML(string=rendered_html).write_pdf()
+        # Generate PDF from HTML with timeout
+        try:
+            pdf_bytes = await asyncio.wait_for(
+                asyncio.to_thread(weasyprint.HTML(string=rendered_html).write_pdf),
+                timeout=60.0  # 1 minute timeout for PDF generation
+            )
+        except asyncio.TimeoutError:
+            return JSONResponse({
+                "success": False,
+                "error": "PDF rendering timed out",
+                "details": "The PDF generation process took too long. Please try again or contact support."
+            }, status_code=408)
+        except Exception as pdf_error:
+            return JSONResponse({
+                "success": False,
+                "error": f"PDF rendering failed: {str(pdf_error)}",
+                "details": "The PDF could not be generated from the analysis data."
+            }, status_code=500)
         
         # Convert to base64
         pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
@@ -1118,7 +1183,8 @@ async def generate_pdf_report(file: UploadFile = File(...)):
     except Exception as e:
         return JSONResponse({
             "success": False,
-            "error": f"PDF generation failed: {str(e)}"
+            "error": f"PDF generation failed: {str(e)}",
+            "details": "An unexpected error occurred during the PDF generation process."
         }, status_code=500)
 
 

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   ml:
     build: .
@@ -12,7 +10,23 @@ services:
       - ./:/app
       - ./artifacts:/app/artifacts
       - ./models:/app/models
-    command: uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000 --log-level warning --no-access-log
+    environment:
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 2G
+          cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000 --log-level info --timeout-keep-alive 120 --workers 1
 
   streamlit:
     build: .
@@ -22,14 +36,28 @@ services:
     environment:
       - ML_SERVICE_URL=http://ml:9000
     depends_on:
-      - ml
+      ml:
+        condition: service_started
     ports:
       - "8501:8501"
     volumes:
       - ./:/app
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+        reservations:
+          memory: 1G
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     command: streamlit run ml/streamlit_app.py --server.port 8501 --server.address 0.0.0.0
 
 networks:
   default:
     name: fake-apk-net
-
