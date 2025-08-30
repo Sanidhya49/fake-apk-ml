@@ -492,11 +492,97 @@ def _render_html_report(result: Dict, filename: str) -> str:
     prob = result.get("probability", 0)
     risk = result.get("risk", "Unknown")
     
-    # Build feature table rows
-    rows = "".join(f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in fv.items())
+    def format_feature_name(name):
+        """Convert feature name to proper title case without underscores"""
+        # Special mappings for common abbreviations and terms
+        special_mappings = {
+            'api': 'API',
+            'sdk': 'SDK',
+            'cn': 'Certificate Name',
+            'pkg': 'Package',
+            'url': 'URL',
+            'http': 'HTTP',
+            'tld': 'Top Level Domain',
+            'mb': 'MB',
+            'upi': 'UPI',
+            'sms': 'SMS',
+            'id': 'ID',
+            'dex': 'DEX'
+        }
+        
+        # Remove prefixes like 'api_', 'perm_' for cleaner names
+        clean_name = name
+        if name.startswith('api_'):
+            clean_name = name[4:]
+        elif name.startswith('perm_'):
+            clean_name = name[5:]
+        
+        # Split by underscores and convert to title case
+        words = clean_name.split('_')
+        formatted_words = []
+        
+        for word in words:
+            if word.lower() in special_mappings:
+                formatted_words.append(special_mappings[word.lower()])
+            else:
+                formatted_words.append(word.title())
+        
+        return ' '.join(formatted_words)
     
-    # Build SHAP features list
-    shap_rows = "".join(f"<li><strong>{item.get('feature', 'Unknown')}</strong>: {round(item.get('value', 0), 4)}</li>" for item in top)
+    # Separate permissions and other features
+    permissions = {}
+    api_features = {}
+    general_features = {}
+    
+    for k, v in fv.items():
+        if k in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET', 'QUERY_ALL_PACKAGES']:
+            if v == 1:  # Only show permissions that are granted (true)
+                permissions[k] = v
+        elif k.startswith('api_') and v == 1:  # Only show APIs that are present
+            api_features[k] = v
+        else:
+            general_features[k] = v
+    
+    # Build permission cards (only for granted permissions)
+    permission_cards = ""
+    if permissions:
+        for perm, value in permissions.items():
+            perm_display = format_feature_name(perm)
+            permission_cards += f"""
+                <div class="permission-card granted">
+                    <div class="permission-icon">🔓</div>
+                    <div class="permission-name">{perm_display}</div>
+                </div>
+            """
+    
+    # Build API features list (only for present APIs)
+    api_rows = ""
+    if api_features:
+        for api, value in api_features.items():
+            api_display = format_feature_name(api)
+            api_rows += f"<tr><td>{api_display}</td><td><span class='status-present'>Present</span></td></tr>"
+    
+    # Build general features table
+    general_rows = ""
+    for k, v in general_features.items():
+        if k not in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET', 'QUERY_ALL_PACKAGES'] and not k.startswith('api_'):
+            feature_display = format_feature_name(k)
+            if isinstance(v, bool):
+                display_value = "Yes" if v else "No"
+                value_class = "status-yes" if v else "status-no"
+                general_rows += f"<tr><td>{feature_display}</td><td><span class='{value_class}'>{display_value}</span></td></tr>"
+            elif isinstance(v, (int, float)) and k.endswith('_score'):
+                general_rows += f"<tr><td>{feature_display}</td><td><span class='score-value'>{v:.2f}</span></td></tr>"
+            else:
+                general_rows += f"<tr><td>{feature_display}</td><td>{v}</td></tr>"
+    
+    # Build SHAP features list with formatted names
+    shap_rows = ""
+    for item in top:
+        feature_name = format_feature_name(item.get('feature', 'Unknown'))
+        value = round(item.get('value', 0), 4)
+        impact_class = "positive-impact" if value > 0 else "negative-impact"
+        shap_rows += f"<li><strong>{feature_name}</strong>: <span class='{impact_class}'>{value:+.4f}</span></li>"
     
     # Risk color
     risk_color = {"Red": "#dc2626", "Amber": "#d97706", "Green": "#16a34a"}.get(risk, "#6b7280")
@@ -516,151 +602,311 @@ def _render_html_report(result: Dict, filename: str) -> str:
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
                 margin: 0;
                 padding: 20px;
-                background: #f8fafc;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: #1f2937;
                 line-height: 1.6;
+                min-height: 100vh;
             }}
             .container {{
-                max-width: 900px;
+                max-width: 1100px;
                 margin: 0 auto;
                 background: white;
-                border-radius: 12px;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                border-radius: 16px;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
                 overflow: hidden;
             }}
             .header {{
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
-                padding: 30px;
+                padding: 40px;
                 text-align: center;
+                position: relative;
+            }}
+            .header::before {{
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M20 20c0 11.046-8.954 20-20 20v20h40V20H20z'/%3E%3C/g%3E%3C/svg%3E") repeat;
+            }}
+            .header-content {{
+                position: relative;
+                z-index: 1;
             }}
             .header h1 {{
-                margin: 0 0 10px 0;
-                font-size: 2.2em;
-                font-weight: 700;
+                margin: 0 0 15px 0;
+                font-size: 2.5em;
+                font-weight: 800;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             }}
             .header p {{
                 margin: 0;
-                opacity: 0.9;
-                font-size: 1.1em;
+                opacity: 0.95;
+                font-size: 1.2em;
+                font-weight: 300;
             }}
             .content {{
-                padding: 30px;
+                padding: 40px;
             }}
             .summary {{
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin-bottom: 30px;
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                gap: 25px;
+                margin-bottom: 40px;
             }}
             .summary-card {{
-                padding: 20px;
-                border-radius: 8px;
+                padding: 25px;
+                border-radius: 12px;
                 border: 1px solid #e5e7eb;
-                background: #f9fafb;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }}
+            .summary-card:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
             }}
             .summary-card h3 {{
-                margin: 0 0 8px 0;
+                margin: 0 0 12px 0;
                 font-size: 0.9em;
-                font-weight: 600;
+                font-weight: 700;
                 text-transform: uppercase;
                 color: #6b7280;
-                letter-spacing: 0.05em;
+                letter-spacing: 0.1em;
             }}
             .summary-card .value {{
-                font-size: 1.8em;
-                font-weight: 700;
+                font-size: 2em;
+                font-weight: 800;
                 margin: 0;
             }}
             .section {{
-                margin-bottom: 30px;
+                margin-bottom: 40px;
+                background: #f9fafb;
+                border-radius: 12px;
+                padding: 30px;
+                border: 1px solid #e5e7eb;
             }}
             .section h2 {{
-                margin: 0 0 20px 0;
-                font-size: 1.5em;
+                margin: 0 0 25px 0;
+                font-size: 1.6em;
                 font-weight: 700;
                 color: #111827;
-                border-bottom: 2px solid #e5e7eb;
-                padding-bottom: 8px;
+                border-bottom: 3px solid #667eea;
+                padding-bottom: 10px;
+                display: flex;
+                align-items: center;
+            }}
+            .section h2::before {{
+                content: '🔍';
+                margin-right: 10px;
+                font-size: 1.2em;
+            }}
+            .permissions-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 15px;
+                margin-top: 15px;
+            }}
+            .permission-card {{
+                display: flex;
+                align-items: center;
+                padding: 15px 20px;
+                border-radius: 8px;
+                border: 2px solid #fbbf24;
+                background: #fef3c7;
+            }}
+            .permission-card.granted {{
+                border-color: #ef4444;
+                background: #fee2e2;
+            }}
+            .permission-icon {{
+                font-size: 1.5em;
+                margin-right: 12px;
+            }}
+            .permission-name {{
+                font-weight: 600;
+                color: #374151;
             }}
             table {{
                 width: 100%;
                 border-collapse: collapse;
-                margin-top: 10px;
+                margin-top: 15px;
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
             }}
             th, td {{
-                padding: 12px;
+                padding: 15px;
                 text-align: left;
                 border-bottom: 1px solid #e5e7eb;
             }}
             th {{
-                background: #f9fafb;
-                font-weight: 600;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                font-weight: 700;
                 color: #374151;
+                text-transform: uppercase;
+                font-size: 0.85em;
+                letter-spacing: 0.05em;
             }}
             tr:hover {{
-                background: #f9fafb;
+                background: #f8fafc;
+            }}
+            tr:last-child td {{
+                border-bottom: none;
+            }}
+            .status-present {{
+                color: #dc2626;
+                font-weight: 600;
+                padding: 4px 8px;
+                background: #fee2e2;
+                border-radius: 4px;
+                font-size: 0.85em;
+            }}
+            .status-yes {{
+                color: #059669;
+                font-weight: 600;
+                padding: 4px 8px;
+                background: #d1fae5;
+                border-radius: 4px;
+                font-size: 0.85em;
+            }}
+            .status-no {{
+                color: #6b7280;
+                font-weight: 600;
+                padding: 4px 8px;
+                background: #f3f4f6;
+                border-radius: 4px;
+                font-size: 0.85em;
+            }}
+            .score-value {{
+                font-weight: 700;
+                color: #1f2937;
+                padding: 4px 8px;
+                background: #e0e7ff;
+                border-radius: 4px;
             }}
             ul {{
                 list-style: none;
                 padding: 0;
             }}
             li {{
-                padding: 8px 0;
+                padding: 12px 0;
                 border-bottom: 1px solid #f3f4f6;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
             }}
             li:last-child {{
                 border-bottom: none;
             }}
+            .positive-impact {{
+                color: #dc2626;
+                font-weight: 700;
+                padding: 4px 8px;
+                background: #fee2e2;
+                border-radius: 4px;
+            }}
+            .negative-impact {{
+                color: #059669;
+                font-weight: 700;
+                padding: 4px 8px;
+                background: #d1fae5;
+                border-radius: 4px;
+            }}
             .timestamp {{
                 text-align: center;
-                margin-top: 30px;
-                padding-top: 20px;
-                border-top: 1px solid #e5e7eb;
+                margin-top: 40px;
+                padding: 25px;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border-radius: 12px;
                 color: #6b7280;
                 font-size: 0.9em;
+                border: 1px solid #e5e7eb;
+            }}
+            .no-data {{
+                text-align: center;
+                padding: 30px;
+                color: #6b7280;
+                font-style: italic;
+                background: #f9fafb;
+                border-radius: 8px;
+                border: 1px dashed #d1d5db;
             }}
             @media (max-width: 768px) {{
                 body {{ padding: 10px; }}
-                .content {{ padding: 20px; }}
+                .content {{ padding: 25px; }}
                 .summary {{ grid-template-columns: 1fr; }}
+                .permissions-grid {{ grid-template-columns: 1fr; }}
+                .header h1 {{ font-size: 2em; }}
+                .section {{ padding: 20px; }}
             }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
-                <h1>APK Security Analysis Report</h1>
-                <p>Comprehensive security analysis for <strong>{filename}</strong></p>
+                <div class="header-content">
+                    <h1>🛡️ APK Security Analysis</h1>
+                    <p>Comprehensive security analysis for <strong>{filename}</strong></p>
+                </div>
             </div>
             
             <div class="content">
                 <div class="summary">
                     <div class="summary-card">
-                        <h3>Prediction</h3>
+                        <h3>📊 Prediction</h3>
                         <p class="value" style="color: {pred_color};">{pred.title()}</p>
                     </div>
                     <div class="summary-card">
-                        <h3>Risk Level</h3>
+                        <h3>⚠️ Risk Level</h3>
                         <p class="value" style="color: {risk_color};">{risk}</p>
                     </div>
                     <div class="summary-card">
-                        <h3>Confidence</h3>
+                        <h3>🎯 Confidence</h3>
                         <p class="value">{prob:.1%}</p>
                     </div>
                     <div class="summary-card">
-                        <h3>Score</h3>
+                        <h3>📈 Score</h3>
                         <p class="value">{prob:.3f}</p>
                     </div>
                 </div>
                 
                 <div class="section">
                     <h2>Top Contributing Features</h2>
-                    {f'<ul>{shap_rows}</ul>' if shap_rows else '<p>No SHAP analysis available.</p>'}
+                    {f'<ul>{shap_rows}</ul>' if shap_rows else '<div class="no-data">No SHAP analysis available for this APK.</div>'}
                 </div>
                 
+                {f'''
                 <div class="section">
-                    <h2>Complete Feature Analysis</h2>
+                    <h2>🔐 Granted Permissions</h2>
+                    <div class="permissions-grid">
+                        {permission_cards}
+                    </div>
+                </div>
+                ''' if permission_cards else ''}
+                
+                {f'''
+                <div class="section">
+                    <h2>⚡ Suspicious APIs Detected</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>API Function</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {api_rows}
+                        </tbody>
+                    </table>
+                </div>
+                ''' if api_rows else ''}
+                
+                <div class="section">
+                    <h2>📋 Application Metadata</h2>
                     <table>
                         <thead>
                             <tr>
@@ -669,15 +915,14 @@ def _render_html_report(result: Dict, filename: str) -> str:
                             </tr>
                         </thead>
                         <tbody>
-                            {rows}
+                            {general_rows}
                         </tbody>
                     </table>
                 </div>
                 
                 <div class="timestamp">
-                    Report generated on {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
-                    <br>
-                    Powered by Fake APK Detection System
+                    <strong>📅 Report Generated:</strong> {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}<br>
+                    <strong>🔧 Powered by:</strong> Fake APK Detection System v2.0
                 </div>
             </div>
         </div>
