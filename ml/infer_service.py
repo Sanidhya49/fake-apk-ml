@@ -9,12 +9,13 @@ import tempfile
 from typing import Dict, List
 
 import numpy as np
-from fastapi import FastAPI, File, UploadFile, Query
+from fastapi import FastAPI, File, UploadFile, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 
 from . import static_extract
 from .utils import ensure_dirs, load_model, vectorize_feature_dict, get_sha256, load_bank_whitelist
+from .websocket_service import websocket_handler
 import json
 from rapidfuzz import fuzz
 
@@ -36,6 +37,24 @@ app.add_middleware(
 
 
 MODEL_PATH = os.path.join("models", "xgb_model.joblib")
+
+
+# WebSocket endpoint for real-time analysis
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket_handler(websocket)
+
+
+# REST endpoint to get WebSocket connection URLs
+@app.get("/ws-urls")
+async def get_websocket_urls():
+    """Get WebSocket URLs for different operations."""
+    base_url = os.environ.get("WS_BASE_URL", "ws://localhost:9000")
+    return JSONResponse({
+        "scan_single": f"{base_url}/ws",
+        "scan_batch": f"{base_url}/ws",
+        "ping": f"{base_url}/ws"
+    })
 
 
 def _vectorize_from_extract(extract_dict: Dict, feature_order: List[str]) -> Dict:

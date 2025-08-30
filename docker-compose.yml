@@ -1,35 +1,68 @@
-version: "3.9"
-
 services:
-  ml:
+  # Flask ML Backend
+  flask-ml:
     build: .
-    container_name: fake-apk-ml
+    container_name: fake-apk-flask
     env_file:
       - .env
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=9000
+      - FLASK_DEBUG=false
     ports:
       - "9000:9000"
     volumes:
-      - ./:/app
+      - ./artifacts:/app/artifacts
+      - ./models:/app/models
+    command: python flask_app/main.py
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import requests; requests.get('http://localhost:9000/', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # FastAPI ML Backend (alternative - can run both)
+  fastapi-ml:
+    build: .
+    container_name: fake-apk-fastapi
+    env_file:
+      - .env
+    ports:
+      - "9001:9000"
+    volumes:
       - ./artifacts:/app/artifacts
       - ./models:/app/models
     command: uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000 --log-level warning --no-access-log
+    restart: unless-stopped
+    profiles: ["fastapi"]
 
+  # Streamlit UI (optional)
   streamlit:
     build: .
     container_name: fake-apk-ui
     env_file:
       - .env
     environment:
-      - ML_SERVICE_URL=http://ml:9000
+      - ML_SERVICE_URL=http://flask-ml:9000
     depends_on:
-      - ml
+      flask-ml:
+        condition: service_healthy
     ports:
       - "8501:8501"
     volumes:
       - ./:/app
     command: streamlit run ml/streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+    restart: unless-stopped
+    profiles: ["streamlit"]
 
 networks:
   default:
     name: fake-apk-net
-

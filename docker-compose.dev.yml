@@ -1,0 +1,26 @@
+services:
+  # Flask Development Server
+  flask-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fake-apk-flask-dev
+    env_file:
+      - .env
+    environment:
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=9000
+      - FLASK_DEBUG=true
+      - FLASK_ENV=development
+    ports:
+      - "9000:9000"
+    volumes:
+      - .:/app
+      - ./artifacts:/app/artifacts
+      - ./models:/app/models
+    command: python flask_app/main.py
+    restart: unless-stopped
+
+networks:
+  default:
+    name: fake-apk-dev-net
