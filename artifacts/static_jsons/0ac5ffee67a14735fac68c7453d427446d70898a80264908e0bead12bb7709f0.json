@@ -1,0 +1,24 @@
+{
+  "file_name": "._esoteric.apk",
+  "sha256": "0ac5ffee67a14735fac68c7453d427446d70898a80264908e0bead12bb7709f0",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\._esoteric.apk",
+  "parse_error": "End of central directory record (EOCD) signature not found"
+}

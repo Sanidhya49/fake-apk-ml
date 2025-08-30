@@ -1,4 +1,4 @@
-### Fake APK ML - Static Analysis Pipeline (Monorepo with Django backend)
+### Fake APK ML - Static Analysis Pipeline
 
 This repository implements a beginner-friendly, fully runnable static-analysis + ML pipeline to detect fake banking APKs. It focuses on offline/static features only (no dynamic analysis or sandboxing).
 
@@ -20,10 +20,6 @@ fake-apk-ml/
 ├─ Dockerfile
 ├─ requirements.txt
 ├─ README.md
-├─ backend/              # Django project (proxy to ML API)
-│  ├─ manage.py
-│  ├─ fake_apk_backend/
-│  └─ scanbridge/        # app exposing POST /api/scan/
 ├─ docker-compose.yml    # optional: run ML API + Streamlit
 ├─ env.sample            # copy to .env for defaults
 └─ .gitignore

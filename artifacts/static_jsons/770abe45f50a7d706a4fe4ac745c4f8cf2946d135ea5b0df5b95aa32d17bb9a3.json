@@ -1,0 +1,24 @@
+{
+  "file_name": "._aBunchOfNative.apk",
+  "sha256": "770abe45f50a7d706a4fe4ac745c4f8cf2946d135ea5b0df5b95aa32d17bb9a3",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\._aBunchOfNative.apk",
+  "parse_error": "End of central directory record (EOCD) signature not found"
+}

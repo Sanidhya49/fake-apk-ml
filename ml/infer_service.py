@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse, HTMLResponse
 
 from . import static_extract
 from .utils import ensure_dirs, load_model, vectorize_feature_dict, get_sha256, load_bank_whitelist
+from .model_validator import get_model_version_info
 import json
 from rapidfuzz import fuzz
 
@@ -150,6 +151,7 @@ async def scan_apk(
     file: UploadFile = File(...),
     quick: bool = Query(False, description="Quick mode: manifest/cert only"),
     debug: bool = Query(False, description="Include debug fields in response"),
+    bypass_cache: bool = Query(False, description="Bypass cache and force fresh analysis"),
 ):
     ensure_dirs()
     # Save to a temp file
@@ -172,7 +174,7 @@ async def scan_apk(
             sha = None
 
         ext = None
-        if sha:
+        if sha and not bypass_cache:
             cached = _try_load_cached_json(sha)
             if cached:
                 ext = cached
@@ -190,18 +192,19 @@ async def scan_apk(
                     ext = None
             if not isinstance(ext, dict):
                 return JSONResponse({"error": "parse_failed", "detail": "Could not parse APK"}, status_code=422)
-            # Persist to cache for future fast scans
-            try:
-                sha = ext.get("sha256")
-                if sha:
-                    cache_dir = os.path.join("artifacts", "static_jsons")
-                    os.makedirs(cache_dir, exist_ok=True)
-                    cache_path = os.path.join(cache_dir, f"{sha}.json")
-                    if not os.path.exists(cache_path):
-                        with open(cache_path, "w", encoding="utf-8") as _f:
-                            json.dump(ext, _f, ensure_ascii=False)
-            except Exception:
-                pass
+            # Persist to cache for future fast scans (only if not bypassing cache)
+            if not bypass_cache:
+                try:
+                    sha = ext.get("sha256")
+                    if sha:
+                        cache_dir = os.path.join("artifacts", "static_jsons")
+                        os.makedirs(cache_dir, exist_ok=True)
+                        cache_path = os.path.join(cache_dir, f"{sha}.json")
+                        if not os.path.exists(cache_path):
+                            with open(cache_path, "w", encoding="utf-8") as _f:
+                                json.dump(ext, _f, ensure_ascii=False)
+                except Exception:
+                    pass
         v = _vectorize_from_extract(ext, feature_order)
         X = np.array([v["vector"]])
         # Probability of class 1 (fake)
@@ -335,6 +338,8 @@ async def scan_apk(
                 "aggressive": bool(aggressive),
                 "sha256": sha,
                 "force_rule": force_rule or "",
+                "cache_bypassed": bool(bypass_cache),
+                "cache_used": not bool(bypass_cache) and ext is not None,
             }
         return JSONResponse(out)
     finally:
@@ -487,6 +492,15 @@ async def scan_batch(
 @app.get("/")
 async def root():
     return {"status": "ok", "message": "Use POST /scan with multipart file 'file'"}
+
+@app.get("/model-info")
+async def model_info():
+    """Get model version and consistency information."""
+    try:
+        version_info = get_model_version_info()
+        return JSONResponse(version_info)
+    except Exception as e:
+        return JSONResponse({"error": "Failed to get model info", "detail": str(e)}, status_code=500)
 
 
 def _render_html_report(result: Dict) -> str:

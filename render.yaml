@@ -3,26 +3,36 @@ services:
     name: fake-apk-ml-api
     env: docker
     plan: free
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./Dockerfile.prod
     envVars:
+      # Model configuration - CRITICAL for consistent outputs
       - key: ML_FAKE_THRESHOLD
-        value: "0.61"
+        value: "0.35"
       - key: ML_AGGRESSIVE
         value: "0"
+      - key: ML_OFFICIAL_OVERRIDE
+        value: "1"
+      - key: ML_OFFICIAL_OVERRIDE_CAP
+        value: "0.40"
+      - key: ML_HEURISTIC_MIN_PROB
+        value: "0.35"
+      - key: ML_HEURISTIC_MIN_SIGNALS
+        value: "2"
+      - key: ML_MARGIN
+        value: "0.08"
+      
+      # System configuration
       - key: PYTHONUNBUFFERED
         value: "1"
-
-  - type: web
-    name: fake-apk-django
-    env: docker
-    plan: free
-    dockerfilePath: ./backend/Dockerfile
-    envVars:
-      - key: ML_SERVICE_URL
-        fromService:
-          type: web
-          name: fake-apk-ml-api
-          envVarKey: RENDER_EXTERNAL_URL
-      - key: PYTHONUNBUFFERED
+      - key: PYTHONHASHSEED
+        value: "42"
+      
+      # Disable cache bypass for production (faster, consistent)
+      - key: ML_DISABLE_CACHE_BYPASS
         value: "1"
+    
+    healthCheckPath: /
+    autoDeploy: true
+    buildCommand: pip install -r requirements.prod.txt
+    startCommand: uvicorn ml.infer_service:app --host 0.0.0.0 --port $PORT --workers 2 --log-level warning --no-access-log
 

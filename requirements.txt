@@ -13,8 +13,6 @@ streamlit==1.37.1
 xlsxwriter==3.2.0
 python-dotenv==1.0.1
 python-docx==1.1.2
-django==5.1.5
-djangorestframework==3.14.0
-django-cors-headers==4.4.0
 requests==2.32.3
-
+plotly==5.21.0
+PyYAML==6.0.1

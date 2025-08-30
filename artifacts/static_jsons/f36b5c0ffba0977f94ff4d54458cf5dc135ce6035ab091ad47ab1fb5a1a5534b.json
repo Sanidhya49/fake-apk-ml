@@ -1,0 +1,36 @@
+{
+  "file_name": "0xB321054A (1).apk",
+  "sha256": "f36b5c0ffba0977f94ff4d54458cf5dc135ce6035ab091ad47ab1fb5a1a5534b",
+  "package": "com.ctf.hack_lu",
+  "version": "1.0",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749296357504 b'071\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x100\\x0e\\x06\\x03U\\x04\\n\\x13\\x07Android1\\x160\\x14\\x06\\x03U\\x04\\x03\\x13\\rAndroid Debug'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749300247248 b'071\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x100\\x0e\\x06\\x03U\\x04\\n\\x13\\x07Android1\\x160\\x14\\x06\\x03U\\x04\\x03\\x13\\rAndroid Debug'>",
+  "app_label": "Hack.lu Android-CrackMe",
+  "domains": [
+    "schemas.android.com",
+    "focused.png",
+    "normal.png",
+    "pressed.png",
+    "icon.png",
+    "main.xml",
+    "hack.lu",
+    "accesscontrol.java",
+    "googlemail.com",
+    "androidmanifest.xml",
+    "resources.arsc",
+    "classes.dex"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\0xB321054A (1).apk"
+}

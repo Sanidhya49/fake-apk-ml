@@ -1,0 +1,42 @@
+{
+  "file_name": "GrehAndroidMe.apk",
+  "sha256": "723b88c18b0a3298f17ecaf163749016ff10d1b7c393727b35e159b5d5c5343c",
+  "package": "grackme.im.famous",
+  "version": "1.0",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 1,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749685701360 b'0\\x121\\x100\\x0e\\x06\\x03U\\x04\\x03\\x13\\x07Foo Bar'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749685694976 b'0\\x121\\x100\\x0e\\x06\\x03U\\x04\\x03\\x13\\x07Foo Bar'>",
+  "app_label": "GrackMe",
+  "domains": [
+    "schemas.android.com",
+    "main.xml",
+    "launcher.png",
+    "search.png",
+    "super.onactivitycreated",
+    "super.onattach",
+    "super.oncreate",
+    "super.ondestroy",
+    "super.ondestroyview",
+    "super.ondetach",
+    "super.onpause",
+    "super.onresume",
+    "super.onstart",
+    "super.onstop",
+    "fragmentpager.savedstate",
+    "androidmanifest.xml",
+    "resources.arsc",
+    "classes.dex"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\GrehAndroidMe.apk"
+}

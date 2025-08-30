@@ -1,0 +1,29 @@
+{
+  "file_name": "insomnidroid.apk",
+  "sha256": "cd93811e6abcd26d93a4649db62c3d34f7ab01bc30fdb835b7ebee61479c893d",
+  "package": "com.fortiguard.insomnihack2012.challenge",
+  "version": "1.0",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749292856336 b'0M1\\x110\\x0f\\x06\\x03U\\x04\\n\\x13\\x08Fortinet1\\x130\\x11\\x06\\x03U\\x04\\x0b\\x13\\nFortiguard1#0!\\x06\\x03U\\x04\\x03\\x13\\x1aInsomnihack challenge test'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749292863056 b'0M1\\x110\\x0f\\x06\\x03U\\x04\\n\\x13\\x08Fortinet1\\x130\\x11\\x06\\x03U\\x04\\x0b\\x13\\nFortiguard1#0!\\x06\\x03U\\x04\\x03\\x13\\x1aInsomnihack challenge test'>",
+  "app_label": "InsomniDroid",
+  "domains": [
+    "main.xml",
+    "icon.png",
+    "androidmanifest.xml",
+    "resources.arsc",
+    "classes.dex"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\insomnidroid.apk"
+}
