@@ -1,0 +1,69 @@
+# APK Fake Detection Model Training Configuration
+# Copy this file and modify as needed, then use: python ml/train.py --config your_config.yaml
+
+# Model type: "xgboost" or "randomforest"
+model_type: "xgboost"
+
+# XGBoost parameters (only used if model_type is "xgboost")
+xgboost_params:
+  n_estimators: 200
+  max_depth: 4
+  learning_rate: 0.1
+  subsample: 0.9
+  colsample_bytree: 0.9
+  eval_metric: "logloss"
+  random_state: 42
+  tree_method: "hist"
+
+# RandomForest parameters (only used if model_type is "randomforest")
+randomforest_params:
+  n_estimators: 300
+  max_depth: 10
+  min_samples_split: 5
+  min_samples_leaf: 2
+  random_state: 42
+
+# Training parameters
+test_size: 0.25
+random_state: 42
+cv_folds: 5
+
+# Threshold tuning configuration
+threshold_tuning: true
+threshold_range: [0.1, 0.9]  # min, max threshold to try
+threshold_step: 0.05         # step size for threshold search
+threshold_metric: "f1"       # metric to optimize: "f1", "precision", "recall", "balanced_accuracy"
+
+# Probability calibration
+enable_calibration: true
+calibration_method: "isotonic"  # "isotonic" or "sigmoid"
+calibration_cv: 3
+
+# Novelty detection (for detecting unknown app types)
+enable_novelty_detector: true
+novelty_contamination: 0.1    # expected fraction of outliers
+min_legit_samples: 20         # minimum legitimate samples needed
+
+# SHAP analysis (for model interpretability)
+enable_shap: true
+shap_top_features: 3          # number of top features to show per sample
+shap_max_samples: 100         # maximum samples to analyze (for performance)
+
+# Output settings
+save_model: true
+save_artifacts: true
+model_version: null           # auto-generated timestamp if null
+
+# Example configurations for different use cases:
+
+# Conservative model (fewer false positives)
+# threshold_metric: "precision"
+# threshold_range: [0.5, 0.9]
+
+# Sensitive model (fewer false negatives)
+# threshold_metric: "recall"
+# threshold_range: [0.1, 0.5]
+
+# Balanced model (default)
+# threshold_metric: "f1"
+# threshold_range: [0.1, 0.9]

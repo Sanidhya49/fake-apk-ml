@@ -1,0 +1,53 @@
+{
+  "file_name": "d81c00d48f918cab3bdfdb461378872db0e2a076c648b07a8e80d9093fd35b75.apk",
+  "sha256": "d81c00d48f918cab3bdfdb461378872db0e2a076c648b07a8e80d9093fd35b75",
+  "package": "com.ujtwzkjqusrfzj.tyqbf",
+  "version": "1.0",
+  "permissions": [
+    "CALL_PHONE",
+    "INTERNET",
+    "READ_CONTACTS",
+    "READ_PHONE_STATE",
+    "READ_SMS",
+    "RECEIVE_BOOT_COMPLETED",
+    "RECEIVE_SMS",
+    "REQUEST_DELETE_PACKAGES",
+    "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+    "SEND_SMS",
+    "WAKE_LOCK"
+  ],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 1
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749522902240 b'0\\x81\\x941\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x130\\x11\\x06\\x03U\\x04\\x08\\x13\\nCalifornia1\\x160\\x14\\x06\\x03U\\x04\\x07\\x13\\rMountain View1\\x100\\x0e\\x06\\x03U\\x04\\n\\x13\\x07Android1\\x100\\x0e\\x06\\x03U\\x04\\x0b\\x13\\x07Android1\\x100\\x0e\\x06\\x03U\\x04\\x03\\x13\\x07Android1\"0 \\x06\\t*\\x86H\\x86\\xf7\\r\\x01\\t\\x01\\x16\\x13android@android.com'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749522896720 b'0\\x81\\x941\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x130\\x11\\x06\\x03U\\x04\\x08\\x13\\nCalifornia1\\x160\\x14\\x06\\x03U\\x04\\x07\\x13\\rMountain View1\\x100\\x0e\\x06\\x03U\\x04\\n\\x13\\x07Android1\\x100\\x0e\\x06\\x03U\\x04\\x0b\\x13\\x07Android1\\x100\\x0e\\x06\\x03U\\x04\\x03\\x13\\x07Android1\"0 \\x06\\t*\\x86H\\x86\\xf7\\r\\x01\\t\\x01\\x16\\x13android@android.com'>",
+  "app_label": "Android Güncelleme",
+  "domains": [
+    "com.google.android.apps.authenticator",
+    "android.app.role.sms",
+    "android.settings.accessibility",
+    "5android.settings.request",
+    "android.view.viewgroup",
+    "android.widget.linearlayout",
+    "com.google.android.permissioncontroller",
+    "zebrj.png",
+    "launcher.png",
+    "round.png",
+    "henb.xml",
+    "ndptwlnlz.xml",
+    "schemas.android.com",
+    "androidmanifest.xml",
+    "classes.dex",
+    "resources.arsc",
+    "android.com"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\d81c00d48f918cab3bdfdb461378872db0e2a076c648b07a8e80d9093fd35b75.apk"
+}

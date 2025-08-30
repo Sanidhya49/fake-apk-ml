@@ -1,0 +1,24 @@
+{
+  "file_name": "._WhyShouldIPay.apk",
+  "sha256": "e4b9091a9d1e32335fe85cb19e99a1cf9dbeaf518e95203a92d20a82a736ea16",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\._WhyShouldIPay.apk",
+  "parse_error": "End of central directory record (EOCD) signature not found"
+}

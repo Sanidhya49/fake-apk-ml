@@ -1,37 +1,127 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
 .venv/
 venv/
+env/
+ENV/
+env.bak/
+venv.bak/
 
-# Project artifacts
-artifacts/
-data/
-!data/.gitkeep
-backend/db.sqlite3
-backend/.venv/
-
-# Models (keep trained model for deployment)
-models/
-!models/xgb_model.joblib
-!models/novelty.joblib
-
-# Streamlit, MLflow, reports
-mlruns/
-scan_results.csv
-scan_results.xlsx
-*.xlsx
-*.csv
-
-# IDE/editor
+# IDE/Editor
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# OS / misc
-.env
+# OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
+# Development and testing files
+test_api.py
+retrain_model.py
+docker-compose.prod.yml
+DEPLOYMENT_GUIDE.md
+DEPLOYMENT_CHECKLIST.md
 
+# Data files (exclude large datasets)
+data/
+!data/.gitkeep
+
+# MLflow tracking (exclude experiment tracking)
+mlruns/
+
+# Scan results (exclude user-generated results)
 scan_results/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# Keep essential deployment files
+!models/xgb_model.joblib
+!models/novelty.joblib
+!artifacts/features.csv
+!artifacts/shap_summary.csv
+!ml/bank_whitelist.json

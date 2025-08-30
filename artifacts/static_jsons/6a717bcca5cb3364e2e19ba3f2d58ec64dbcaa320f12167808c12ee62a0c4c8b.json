@@ -1,0 +1,32 @@
+{
+  "file_name": "UnCrackable-Level1 (1).apk",
+  "sha256": "6a717bcca5cb3364e2e19ba3f2d58ec64dbcaa320f12167808c12ee62a0c4c8b",
+  "package": "sg.vantagepoint.uncrackable1",
+  "version": "1.0",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2372296056064 b\"0E1)0'\\x06\\x03U\\x04\\n\\x13 Vantage Point Security Pte. Ltd.1\\x180\\x16\\x06\\x03U\\x04\\x03\\x13\\x0fBernhard Muller\">",
+  "cert_issuer": "<asn1crypto.x509.Name 2372296056208 b\"0E1)0'\\x06\\x03U\\x04\\n\\x13 Vantage Point Security Pte. Ltd.1\\x180\\x16\\x06\\x03U\\x04\\x03\\x13\\x0fBernhard Muller\">",
+  "app_label": "Uncrackable1",
+  "domains": [
+    "schemas.android.com",
+    "main.xml",
+    "launcher.png",
+    "com.koushikdutta.superuser.daemon",
+    "superuser.apk",
+    "androidmanifest.xml",
+    "resources.arsc",
+    "classes.dex"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\UnCrackable-Level1 (1).apk"
+}

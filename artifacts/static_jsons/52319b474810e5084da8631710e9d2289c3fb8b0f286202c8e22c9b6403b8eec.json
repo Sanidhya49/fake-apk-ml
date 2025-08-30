@@ -1,0 +1,24 @@
+{
+  "file_name": "appstore.apk",
+  "sha256": "52319b474810e5084da8631710e9d2289c3fb8b0f286202c8e22c9b6403b8eec",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\appstore.apk",
+  "parse_error": "End of central directory record (EOCD) signature not found"
+}

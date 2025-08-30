@@ -1,0 +1,35 @@
+{
+  "file_name": "Crackme03 (1).apk",
+  "sha256": "449a0b9b140c0f04842211f3e40c8896ed5cbdc7e33a57d90ea97a467237e0b9",
+  "package": "com.example.crackme03",
+  "version": "1.0",
+  "permissions": [
+    "READ_PHONE_STATE"
+  ],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 1,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749639851856 b'0\\r1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x0234'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749639849744 b'0\\r1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x0234'>",
+  "app_label": "Android Crackme03 - [by deurus]",
+  "domains": [
+    "helloandroid.java",
+    "prueba2.java",
+    "icon2.png",
+    "icon.png",
+    "androidmanifest.xml",
+    "resources.arsc",
+    "prueba2.xml",
+    "prueba.xml",
+    "classes.dex"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\Crackme03 (1).apk"
+}

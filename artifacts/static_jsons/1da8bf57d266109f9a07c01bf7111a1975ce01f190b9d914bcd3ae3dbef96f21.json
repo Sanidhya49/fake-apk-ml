@@ -1,0 +1,32 @@
+{
+  "file_name": "UnCrackable-Level1.apk",
+  "sha256": "1da8bf57d266109f9a07c01bf7111a1975ce01f190b9d914bcd3ae3dbef96f21",
+  "package": "owasp.mstg.uncrackable1",
+  "version": "1.0",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2372296390320 b'0[1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02NL1\\x120\\x10\\x06\\x03U\\x04\\x07\\x13\\tAmsterdam1\\x0e0\\x0c\\x06\\x03U\\x04\\n\\x13\\x05OWASP1\\r0\\x0b\\x06\\x03U\\x04\\x0b\\x13\\x04OMTG1\\x190\\x17\\x06\\x03U\\x04\\x03\\x13\\x10Jeroen Willemsen'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2372296389600 b'0[1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02NL1\\x120\\x10\\x06\\x03U\\x04\\x07\\x13\\tAmsterdam1\\x0e0\\x0c\\x06\\x03U\\x04\\n\\x13\\x05OWASP1\\r0\\x0b\\x06\\x03U\\x04\\x0b\\x13\\x04OMTG1\\x190\\x17\\x06\\x03U\\x04\\x03\\x13\\x10Jeroen Willemsen'>",
+  "app_label": "Uncrackable1",
+  "domains": [
+    "androidmanifest.xml",
+    "classes.dex",
+    "main.xml",
+    "launcher.png",
+    "resources.arsc",
+    "com.koushikdutta.superuser.daemon",
+    "superuser.apk",
+    "schemas.android.com"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\UnCrackable-Level1.apk"
+}

@@ -1,0 +1,24 @@
+{
+  "file_name": "._YouCanHideButYouCannotRun.apk",
+  "sha256": "bc6221dcf7999f555d797150548376a1b5959c5ca11c3aea7774e80b80d64d87",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\._YouCanHideButYouCannotRun.apk",
+  "parse_error": "End of central directory record (EOCD) signature not found"
+}

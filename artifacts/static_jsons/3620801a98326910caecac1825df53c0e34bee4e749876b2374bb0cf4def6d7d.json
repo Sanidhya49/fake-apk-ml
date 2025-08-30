@@ -1,0 +1,24 @@
+{
+  "file_name": "base2 (92).apk",
+  "sha256": "3620801a98326910caecac1825df53c0e34bee4e749876b2374bb0cf4def6d7d",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\legit\\base2 (92).apk",
+  "parse_error": "This is not a DEX file! Wrong endian tag: '0x612e3138'"
+}

@@ -1,0 +1,24 @@
+{
+  "file_name": "._AES-Decrypt.apk",
+  "sha256": "3673c00d3f75ec3e0cdd414b2b9a67bb77fd7a2e757915e7a11006fc69d4f84c",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\._AES-Decrypt.apk",
+  "parse_error": "End of central directory record (EOCD) signature not found"
+}

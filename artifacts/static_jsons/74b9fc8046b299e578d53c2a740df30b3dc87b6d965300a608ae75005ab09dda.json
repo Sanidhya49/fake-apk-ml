@@ -1,0 +1,24 @@
+{
+  "file_name": "._FlagValidator.apk",
+  "sha256": "74b9fc8046b299e578d53c2a740df30b3dc87b6d965300a608ae75005ab09dda",
+  "package": "",
+  "version": "",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "unknown",
+  "cert_issuer": "unknown",
+  "app_label": "",
+  "domains": [],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\._FlagValidator.apk",
+  "parse_error": "End of central directory record (EOCD) signature not found"
+}

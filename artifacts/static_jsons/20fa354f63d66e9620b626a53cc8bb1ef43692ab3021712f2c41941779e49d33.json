@@ -1,0 +1,53 @@
+{
+  "file_name": "ctfbank.apk",
+  "sha256": "20fa354f63d66e9620b626a53cc8bb1ef43692ab3021712f2c41941779e49d33",
+  "package": "ctf.competition.ctfbank.team18",
+  "version": "1.0",
+  "permissions": [
+    "INTERNET"
+  ],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 1
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749339597520 b'0H1\\n0\\x08\\x06\\x03U\\x04\\x06\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x08\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x07\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\n\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x0b\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x03\\x13\\x01y'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749339593200 b'0H1\\n0\\x08\\x06\\x03U\\x04\\x06\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x08\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x07\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\n\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x0b\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x03\\x13\\x01y'>",
+  "app_label": "team18CTFBank",
+  "domains": [
+    "launcher.png",
+    "launch.xml",
+    "info.xml",
+    "resources.arsc",
+    "classes.dex",
+    "success.png",
+    "fail.png",
+    "androidmanifest.xml",
+    "login.xml",
+    "main.xml",
+    "register.xml",
+    "schemas.android.com",
+    "alertdialogmanager.java",
+    "buildconfig.java",
+    "jsonfunctions.java",
+    "jsonparser.java",
+    "loginactivity.java",
+    "mlocationreceiver.java",
+    "magicreceiver.java",
+    "mainactivity.java",
+    "registeractivity.java",
+    "senddatatask.java",
+    "serverinterface.java",
+    "sessionmanager.java",
+    "updateactivity.java",
+    "serverbackend.php",
+    "rye.php"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\ctfbank.apk"
+}

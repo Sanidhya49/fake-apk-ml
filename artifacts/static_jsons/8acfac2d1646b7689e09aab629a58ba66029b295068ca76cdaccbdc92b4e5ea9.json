@@ -1,0 +1,35 @@
+{
+  "file_name": "hashdays-challenge.apk",
+  "sha256": "8acfac2d1646b7689e09aab629a58ba66029b295068ca76cdaccbdc92b4e5ea9",
+  "package": "com.fortiguard.challenge.hashdays2012.challengeapp",
+  "version": "1.0",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2750001272672 b'0{1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02fr1\\x100\\x0e\\x06\\x03U\\x04\\x08\\x13\\x07Unknown1\\x100\\x0e\\x06\\x03U\\x04\\x07\\x13\\x07Unknown1\\x110\\x0f\\x06\\x03U\\x04\\n\\x13\\x08Fortinet1\\x130\\x11\\x06\\x03U\\x04\\x0b\\x13\\nFortiGuard1 0\\x1e\\x06\\x03U\\x04\\x03\\x13\\x17Hashdays challenge 2012'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2750001277232 b'0{1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02fr1\\x100\\x0e\\x06\\x03U\\x04\\x08\\x13\\x07Unknown1\\x100\\x0e\\x06\\x03U\\x04\\x07\\x13\\x07Unknown1\\x110\\x0f\\x06\\x03U\\x04\\n\\x13\\x08Fortinet1\\x130\\x11\\x06\\x03U\\x04\\x0b\\x13\\nFortiGuard1 0\\x1e\\x06\\x03U\\x04\\x03\\x13\\x17Hashdays challenge 2012'>",
+  "app_label": "Hashdays 2012",
+  "domains": [
+    "main.xml",
+    "androidmanifest.xml",
+    "logo.png",
+    "blob.bin",
+    "resources.arsc",
+    "classes.dex",
+    "buildconfig.java",
+    "puzzleactivity.java",
+    "suppresslint.java",
+    "targetapi.java",
+    "validate.java"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\hashdays-challenge.apk"
+}

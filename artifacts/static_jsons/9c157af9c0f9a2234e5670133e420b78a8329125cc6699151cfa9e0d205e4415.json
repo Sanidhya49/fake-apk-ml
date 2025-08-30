@@ -1,0 +1,49 @@
+{
+  "file_name": "9c157af9c0f9a2234e5670133e420b78a8329125cc6699151cfa9e0d205e4415.apk",
+  "sha256": "9c157af9c0f9a2234e5670133e420b78a8329125cc6699151cfa9e0d205e4415",
+  "package": "com.hyiyxseyeblfd.kkygauuvdknult",
+  "version": "1.0",
+  "permissions": [
+    "CALL_PHONE",
+    "DISABLE_KEYGUARD",
+    "INTERNET",
+    "READ_CONTACTS",
+    "READ_PHONE_STATE",
+    "READ_SMS",
+    "RECEIVE_BOOT_COMPLETED",
+    "RECEIVE_SMS",
+    "REQUEST_DELETE_PACKAGES",
+    "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+    "SEND_SMS",
+    "WAKE_LOCK"
+  ],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 1
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749358869536 b'0@1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x170\\x15\\x06\\x03U\\x04\\n\\x13\\x0elwkpltbeafwwlh1\\x180\\x16\\x06\\x03U\\x04\\x03\\x13\\x0ftwyimvydddnqxjq'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749358869488 b'0@1\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x170\\x15\\x06\\x03U\\x04\\n\\x13\\x0elwkpltbeafwwlh1\\x180\\x16\\x06\\x03U\\x04\\x03\\x13\\x0ftwyimvydddnqxjq'>",
+  "app_label": "test",
+  "domains": [
+    "com.google.android.apps.authenticator",
+    "android.app.role.sms",
+    "android.settings.accessibility",
+    "5android.settings.request",
+    "android.view.viewgroup",
+    "android.widget.linearlayout",
+    "com.google.android.permissioncontroller",
+    "schemas.android.com",
+    "androidmanifest.xml",
+    "app-metadata.properties",
+    "classes.dex",
+    "resources.arsc"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\9c157af9c0f9a2234e5670133e420b78a8329125cc6699151cfa9e0d205e4415.apk"
+}

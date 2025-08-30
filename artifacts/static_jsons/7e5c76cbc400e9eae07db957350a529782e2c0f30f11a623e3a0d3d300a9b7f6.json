@@ -1,0 +1,51 @@
+{
+  "file_name": "andymail.apk",
+  "sha256": "7e5c76cbc400e9eae07db957350a529782e2c0f30f11a623e3a0d3d300a9b7f6",
+  "package": "ctf.competition.team18.andymail",
+  "version": "1.0",
+  "permissions": [
+    "INTERNET"
+  ],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 0,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749528389104 b'0H1\\n0\\x08\\x06\\x03U\\x04\\x06\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x08\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x07\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\n\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x0b\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x03\\x13\\x01y'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749528391264 b'0H1\\n0\\x08\\x06\\x03U\\x04\\x06\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x08\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x07\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\n\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x0b\\x13\\x01y1\\n0\\x08\\x06\\x03U\\x04\\x03\\x13\\x01y'>",
+  "app_label": "AndyEmail-18",
+  "domains": [
+    "launcher.png",
+    "draftcomposer.xml",
+    "draft.xml",
+    "email.xml",
+    "message.java.master",
+    "resources.arsc",
+    "classes.dex",
+    "dummy.txt",
+    "main.xml",
+    "androidmanifest.xml",
+    "inbox.xml",
+    "schemas.android.com",
+    "andyobject.java",
+    "buildconfig.java",
+    "draftactivity.java",
+    "draftcomposeractivity.java",
+    "emailarrayadapter.java",
+    "emailreaderactivity.java",
+    "inboxactivity.java",
+    "mainactivity.java",
+    "message.java",
+    "ctf.competition.andyemail",
+    "user.length",
+    "password.length",
+    "msg.length"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\andymail.apk"
+}

@@ -1,0 +1,43 @@
+{
+  "file_name": "AllMixedUp.apk",
+  "sha256": "98a2d09cd31e350125eedebdf680c539c23fb55e07af46c32fdebbaa223a0249",
+  "package": "all.mixed.up",
+  "version": "1.0",
+  "permissions": [],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 0,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 1,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749341630240 b'071\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x100\\x0e\\x06\\x03U\\x04\\n\\x13\\x07Android1\\x160\\x14\\x06\\x03U\\x04\\x03\\x13\\rAndroid Debug'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749341626400 b'071\\x0b0\\t\\x06\\x03U\\x04\\x06\\x13\\x02US1\\x100\\x0e\\x06\\x03U\\x04\\n\\x13\\x07Android1\\x160\\x14\\x06\\x03U\\x04\\x03\\x13\\rAndroid Debug'>",
+  "app_label": "AllMixedUp",
+  "domains": [
+    "launcher.png",
+    "search.png",
+    "resources.arsc",
+    "classes.dex",
+    "crack.xml",
+    "androidmanifest.xml",
+    "boink.data",
+    "schemas.android.com",
+    "super.onactivitycreated",
+    "super.onattach",
+    "super.oncreate",
+    "super.ondestroy",
+    "super.ondestroyview",
+    "super.ondetach",
+    "super.onpause",
+    "super.onresume",
+    "super.onstart",
+    "super.onstop",
+    "fragmentpager.savedstate"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\AllMixedUp.apk"
+}

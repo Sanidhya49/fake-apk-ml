@@ -1,0 +1,53 @@
+{
+  "file_name": "c14ed08b2ffd360c937ed3f83bf26c2887710da1.apk",
+  "sha256": "a0c2cab5ca8b7b4f78632d258ce79c638379bc237f7b847195200de3de2138c0",
+  "package": "net.sacrificed.stunningly",
+  "version": "1.0",
+  "permissions": [
+    "ACCESS_COARSE_LOCATION",
+    "ACCESS_COARSE_UPDATES",
+    "ACCESS_FINE_LOCATION",
+    "ACCESS_NETWORK_STATE",
+    "CALL_PHONE",
+    "CAMERA",
+    "GET_TASKS",
+    "INTERNET",
+    "MODIFY_AUDIO_SETTINGS",
+    "PROCESS_OUTGOING_CALLS",
+    "READ_CALL_LOG",
+    "READ_CONTACTS",
+    "READ_PHONE_STATE",
+    "READ_PROFILE",
+    "RECEIVE_BOOT_COMPLETED",
+    "SYSTEM_ALERT_WINDOW",
+    "WAKE_LOCK",
+    "WRITE_CALL_LOG",
+    "WRITE_CONTACTS",
+    "WRITE_EXTERNAL_STORAGE",
+    "WRITE_SETTINGS"
+  ],
+  "exported": [],
+  "suspicious_apis": {
+    "getDeviceId": 1,
+    "sendTextMessage": 0,
+    "SmsManager": 0,
+    "DexClassLoader": 0,
+    "TYPE_SYSTEM_ALERT_WINDOW": 0,
+    "addView": 1,
+    "HttpURLConnection": 0,
+    "openConnection": 0
+  },
+  "cert_subject": "<asn1crypto.x509.Name 2749619214272 b'0,1\\t0\\x07\\x06\\x03U\\x04\\x06\\x13\\x001\\t0\\x07\\x06\\x03U\\x04\\n\\x13\\x001\\t0\\x07\\x06\\x03U\\x04\\x0b\\x13\\x001\\t0\\x07\\x06\\x03U\\x04\\x03\\x13\\x00'>",
+  "cert_issuer": "<asn1crypto.x509.Name 2749619212304 b'0,1\\t0\\x07\\x06\\x03U\\x04\\x06\\x13\\x001\\t0\\x07\\x06\\x03U\\x04\\n\\x13\\x001\\t0\\x07\\x06\\x03U\\x04\\x0b\\x13\\x001\\t0\\x07\\x06\\x03U\\x04\\x03\\x13\\x00'>",
+  "app_label": "Browser Update",
+  "domains": [
+    "data.xml",
+    "empty.xml",
+    "androidmanifest.xml",
+    "launcher.png",
+    "resources.arsc",
+    "classes.dex",
+    "schemas.android.com"
+  ],
+  "source_path": "C:\\Users\\lenovo\\Documents\\Codexxx\\Projects\\fake-apk-ml\\data\\fake\\c14ed08b2ffd360c937ed3f83bf26c2887710da1.apk"
+}
