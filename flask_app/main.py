@@ -34,7 +34,14 @@ except Exception:
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, origins="*")  # Enable CORS for all origins
+
+# Configure CORS with more explicit settings
+CORS(app, 
+     origins=["*"],  # Allow all origins for now, restrict in production
+     methods=["GET", "POST", "OPTIONS"],  # Allowed HTTP methods
+     allow_headers=["Content-Type", "Authorization"],  # Allowed headers
+     supports_credentials=False  # Set to True if you need credentials
+)
 
 # Configuration
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "xgb_model.joblib")
@@ -291,6 +298,24 @@ def _predict_apk(file_path: str, quick: bool = False, debug: bool = False):
         return {"error": "prediction_failed", "detail": str(e)}
 
 # Routes
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight requests"""
+    if request.method == "OPTIONS":
+        response = jsonify()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization")
+        response.headers.add('Access-Control-Allow-Methods', "GET,PUT,POST,DELETE,OPTIONS")
+        return response
+
+@app.after_request
+def after_request(response):
+    """Add CORS headers to all responses"""
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 @app.route('/', methods=['GET'])
 def health_check():
     """Health check endpoint"""
