@@ -2,9 +2,7 @@ FROM python:3.10-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    FLASK_HOST=0.0.0.0 \
-    FLASK_PORT=9000 \
-    FLASK_DEBUG=false
+    PYTHONHASHSEED=42
 
 WORKDIR /app
 
@@ -13,27 +11,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     libmagic1 \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+ && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
-COPY requirements.txt flask_requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir -r flask_requirements.txt
+# Copy requirements first for better caching
+COPY requirements.txt ./
+
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY ml/ ./ml/
+COPY flask_app/ ./flask_app/
+COPY models/ ./models/
+COPY artifacts/ ./artifacts/
+COPY config/ ./config/
 
 # Create necessary directories
-RUN mkdir -p artifacts/static_jsons models
+RUN mkdir -p artifacts/static_jsons
+
+# Set proper permissions
+RUN chmod -R 755 /app
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:9000/ || exit 1
 
 EXPOSE 9000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:9000/', timeout=5)" || exit 1
-
-# Default to Flask app, but can be overridden
-CMD ["python", "flask_app/main.py"]
-
-
-
+# Use environment variable for port (Render requirement)
+CMD ["sh", "-c", "python flask_app/main.py"]

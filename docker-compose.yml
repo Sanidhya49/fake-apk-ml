@@ -1,12 +1,15 @@
 services:
-  # FastAPI ML Backend (Primary - Production)
-  fastapi-ml:
+  # Flask ML Backend (Primary - Production)
+  flask-ml:
     build: .
-    container_name: fake-apk-fastapi
+    container_name: fake-apk-flask
     env_file:
       - .env
     environment:
-      - ML_FAKE_THRESHOLD=0.35
+      - FLASK_HOST=0.0.0.0
+      - FLASK_PORT=9000
+      - FLASK_DEBUG=false
+      - ML_FAKE_THRESHOLD=0.385
       - ML_HEURISTIC_MIN_PROB=0.35
       - PYTHONHASHSEED=42
     ports:
@@ -14,7 +17,7 @@ services:
     volumes:
       - ./artifacts:/app/artifacts
       - ./models:/app/models
-    command: uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000 --workers 2 --log-level warning --no-access-log
+    command: python flask_app/main.py
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9000/', timeout=5)"]
@@ -23,17 +26,17 @@ services:
       retries: 3
       start_period: 10s
 
-  # Flask ML Backend (Alternative - Development)
-  flask-ml:
+  # Development with debug mode
+  flask-ml-dev:
     build: .
-    container_name: fake-apk-flask
+    container_name: fake-apk-flask-dev
     env_file:
       - .env
     environment:
       - FLASK_HOST=0.0.0.0
       - FLASK_PORT=9001
-      - FLASK_DEBUG=false
-      - ML_FAKE_THRESHOLD=0.35
+      - FLASK_DEBUG=true
+      - ML_FAKE_THRESHOLD=0.385
       - ML_HEURISTIC_MIN_PROB=0.35
       - PYTHONHASHSEED=42
     ports:
@@ -41,34 +44,17 @@ services:
     volumes:
       - ./artifacts:/app/artifacts
       - ./models:/app/models
+      - ./flask_app:/app/flask_app
+      - ./ml:/app/ml
     command: python flask_app/main.py
     restart: unless-stopped
-    profiles: ["flask"]
+    profiles: ["dev"]
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:9001/', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-
-  # Streamlit UI (optional)
-  streamlit:
-    build: .
-    container_name: fake-apk-ui
-    env_file:
-      - .env
-    environment:
-      - ML_SERVICE_URL=http://fastapi-ml:9000
-    depends_on:
-      fastapi-ml:
-        condition: service_healthy
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./:/app
-    command: streamlit run ml/streamlit_drag_drop.py --server.port 8501 --server.address 0.0.0.0
-    restart: unless-stopped
-    profiles: ["streamlit"]
 
 networks:
   default:

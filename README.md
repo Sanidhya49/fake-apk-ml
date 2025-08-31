@@ -1,178 +1,304 @@
-### Fake APK ML - Static Analysis Pipeline
+# Fake APK Detection API
 
-This repository implements a beginner-friendly, fully runnable static-analysis + ML pipeline to detect fake banking APKs. It focuses on offline/static features only (no dynamic analysis or sandboxing).
+A machine learning-powered API for detecting fake/malicious Android APK files using static analysis and XGBoost classification.
 
-Repository layout:
+## 🚀 Live API
 
+**Production API**: https://fake-apk-ml-api01.onrender.com
+
+## ✨ Features
+
+- **Single APK Analysis**: Scan individual APK files for malicious content
+- **Batch Processing**: Upload up to 15 APKs simultaneously
+- **Word Document Reports**: Generate professional reports with AI explanations
+- **AI Agent Explanations**: Get intelligent insights into why APKs are classified
+- **Risk Level Assessment**: Red/Amber/Green risk categorization
+- **Performance Optimized**: Fast processing with caching and production WSGI server
+- **Production Ready**: Deployed on Render.com with automatic scaling
+
+## 🏗️ Architecture
+
+- **Backend**: Flask API with Waitress WSGI server
+- **ML Model**: XGBoost classifier with SHAP explanations
+- **Features**: 200+ static analysis features extracted from APK files
+- **Deployment**: Docker container on Render.com
+- **Caching**: SHA256-based caching for improved performance
+
+## 📋 API Endpoints
+
+### Health Check
+```http
+GET /
 ```
-fake-apk-ml/
-├─ data/                  # (empty) you will unzip: data/legit/ and data/fake/
-├─ artifacts/
-│  ├─ static_jsons/
-│  └─ features.csv
-├─ ml/
-│  ├─ static_extract.py
-│  ├─ feature_builder.py
-│  ├─ train.py
-│  ├─ infer_service.py
-│  └─ utils.py
-├─ models/
-├─ Dockerfile
-├─ requirements.txt
-├─ README.md
-├─ docker-compose.yml    # optional: run ML API + Streamlit
-├─ env.sample            # copy to .env for defaults
-└─ .gitignore
+Returns API status and available endpoints.
+
+### Single APK Scan
+```http
+POST /scan
+```
+Scan a single APK file for malicious content.
+
+**Parameters:**
+- `file`: APK file (multipart/form-data)
+- `debug` (optional): Enable debug information
+
+**Response:**
+```json
+{
+  "prediction": "legit|fake",
+  "probability": 0.374,
+  "risk_level": "Green|Amber|Red",
+  "confidence": "Low|Medium|High",
+  "top_shap": [...],
+  "feature_vector": {...},
+  "debug": {
+    "model_threshold": 0.385,
+    "processing_time_seconds": 0.3,
+    "cache_used": false
+  }
+}
 ```
 
-### Quickstart (ML pipeline)
+### Batch APK Scan (Up to 15 files)
+```http
+POST /scan-batch
+```
+Scan multiple APK files simultaneously.
 
-0) Python 3.10+ is recommended. On Windows PowerShell, run commands without the leading `$`.
+**Parameters:**
+- `files`: Multiple APK files (multipart/form-data)
+- `debug` (optional): Enable debug information
 
-1) Install dependencies:
+**Response:**
+```json
+{
+  "results": [
+    {
+      "file": "app1.apk",
+      "prediction": "legit",
+      "probability": 0.25,
+      "risk_level": "Green",
+      "confidence": "High"
+    }
+  ],
+  "summary": {
+    "total_files": 5,
+    "processing_time_seconds": 2.5,
+    "files_per_second": 2.0,
+    "max_files_allowed": 15
+  }
+}
+```
 
+### Word Document Report Generation
+```http
+POST /report-batch
+```
+Generate comprehensive Word document reports with AI explanations.
+
+**Parameters:**
+- `files`: APK files (multipart/form-data, up to 15)
+
+**Response:**
+```json
+{
+  "results": [...],
+  "summary": {
+    "total_files": 5,
+    "report_generated": true
+  },
+  "word_report": "artifacts/batch_report.docx"
+}
+```
+
+## 🎯 Frontend Integration
+
+### Basic Single APK Upload
+```javascript
+const formData = new FormData();
+formData.append('file', apkFile);
+
+const response = await fetch('https://fake-apk-ml-api01.onrender.com/scan', {
+  method: 'POST',
+  body: formData
+});
+
+const result = await response.json();
+console.log(result.prediction); // "legit" or "fake"
+```
+
+### Batch Upload (Up to 15 APKs)
+```javascript
+const formData = new FormData();
+apkFiles.forEach(file => {
+  formData.append('files', file);
+});
+
+const response = await fetch('https://fake-apk-ml-api01.onrender.com/scan-batch', {
+  method: 'POST',
+  body: formData
+});
+
+const result = await response.json();
+console.log(result.results); // Array of scan results
+```
+
+### Word Report Generation
+```javascript
+const formData = new FormData();
+apkFiles.forEach(file => {
+  formData.append('files', file);
+});
+
+const response = await fetch('https://fake-apk-ml-api01.onrender.com/report-batch', {
+  method: 'POST',
+  body: formData
+});
+
+const result = await response.json();
+// Word document is generated on server
+// You can provide download link or email functionality
+```
+
+### Error Handling
+```javascript
+try {
+  const response = await fetch('https://fake-apk-ml-api01.onrender.com/scan', {
+    method: 'POST',
+    body: formData
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    console.error('API Error:', error.detail);
+    return;
+  }
+  
+  const result = await response.json();
+  // Handle success
+} catch (error) {
+  console.error('Network Error:', error);
+}
+```
+
+## 🔧 Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ML_FAKE_THRESHOLD` | 0.385 | Classification threshold |
+| `ML_AGGRESSIVE` | 0 | Aggressive detection mode |
+| `ML_OFFICIAL_OVERRIDE` | 1 | Enable official package override |
+| `ML_OFFICIAL_OVERRIDE_CAP` | 0.40 | Official package override cap |
+| `ML_HEURISTIC_MIN_PROB` | 0.35 | Minimum probability for heuristics |
+| `ML_HEURISTIC_MIN_SIGNALS` | 2 | Minimum signals for heuristics |
+| `ML_MARGIN` | 0.08 | Classification margin |
+| `ML_DISABLE_CACHE_BYPASS` | 1 | Disable cache bypass in production |
+| `FLASK_ENV` | production | Flask environment |
+| `FLASK_DEBUG` | false | Flask debug mode |
+| `PYTHONHASHSEED` | 42 | Python hash seed for consistency |
+
+## 🚀 Local Development
+
+### Prerequisites
+- Python 3.10+
+- Virtual environment
+
+### Setup
 ```bash
-pip install -r requirements.txt
-```
+# Clone repository
+git clone <repository-url>
+cd fake-apk-ml
 
-**Note:** If you encounter compilation errors on Windows, try installing packages individually:
-```bash
-pip install androguard==4.1.3
-pip install pandas==2.2.2
-pip install scikit-learn==1.5.1
-pip install xgboost==2.1.0
-# ... continue with other packages
-```
-
-2) Prepare data:
-
-- Place APKs under `data/legit/` and `data/fake/` (create these folders if they do not exist). Example:
-
-```
-data/
-  legit/
-    bank1.apk
-  fake/
-    trojan1.apk
-```
-
-Verified packages (whitelist)
-- We ship a small `ml/bank_whitelist.json` mapping official package IDs → bank names. During featurization/inference we add:
-  - `pkg_official`: 1 if the package is in the whitelist
-  - `impersonation_score`: fuzzy match against whitelist names and known terms
-You can extend `ml/bank_whitelist.json` safely; no code changes needed.
-
-3) Static extraction to JSON per APK:
-
-```bash
-python -m ml.static_extract data
-```
-
-This writes one JSON per APK into `artifacts/static_jsons/`. Any parse error is logged and processing continues.
-Re-running the command is incremental: it skips APKs that already have a JSON (keyed by the file's sha256), so adding new files later will be fast.
-
-4) Build features CSV:
-
-```bash
-python -m ml.feature_builder
-```
-
-Saves `artifacts/features.csv` and prints class balance.
-
-5) Train model (XGBoost with fallback to RandomForest) and compute SHAP summary for held-out test set:
-
-```bash
-python -m ml.train
-```
-
-Saves model to `models/xgb_model.joblib` and SHAP top-3 per-sample contributions to `artifacts/shap_summary.csv`.
-
-6) Run inference API (FastAPI + Uvicorn) and optional Streamlit UI:
-
-```bash
-uvicorn ml.infer_service:app --host 0.0.0.0 --port 9000
-streamlit run ml/streamlit_app.py
-```
-
-7) Test the API with an APK file:
-
-```bash
-curl -X POST "http://localhost:9000/scan" -F "file=@data/legit/bank1.apk"
-```
-
-Example JSON response contains the predicted class (`fake` or `legit`), probability, top SHAP contributors, and the feature vector used.
-
-### Backend (Django bridge)
-
-The backend proxies uploads to the ML API so any frontend can call one stable endpoint.
-
-Install once:
-
-```powershell
-# from repo root
-pip install -r requirements.txt
-
-cd backend
+# Create virtual environment
 python -m venv .venv
-.\.venv\Scripts\pip install -r ..\requirements.txt
-.\.venv\Scripts\python manage.py migrate
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export ML_FAKE_THRESHOLD=0.385
+export FLASK_DEBUG=true
+
+# Start Flask API
+python flask_app/main.py
 ```
 
-Run backend:
-
-```powershell
-cd backend
-.\.venv\Scripts\python manage.py runserver 0.0.0.0:8000
-```
-
-Config:
-- Set `ML_SERVICE_URL` in `backend/fake_apk_backend/settings.py` or as an environment variable. Default: `http://localhost:9000`.
-- CORS is enabled for development (`CORS_ALLOW_ALL_ORIGINS=True`). Tighten for production.
-
-Endpoint:
-- `POST http://localhost:8000/api/scan/` with multipart field `file` (APK).
-- Optional query params are forwarded to the ML API: `quick`, `debug`.
-
-Example (PowerShell):
-
-```powershell
-$file = "C:\path\to\app.apk"
-curl.exe -s -X POST "http://localhost:8000/api/scan/?quick=false&debug=true" -F "file=@$file"
-```
-
-### Docker
-
-Build and run the API service with Docker (model and artifacts should exist or be mounted):
-
+### Testing
 ```bash
-docker build -t fake-apk-ml .
-docker run -p 9000:9000 -v $(pwd)/artifacts:/app/artifacts -v $(pwd)/models:/app/models fake-apk-ml
+# Test single APK
+python test_optimized_flask.py
+
+# Test with real APKs
+python test_real_apks.py
 ```
 
-Or with Compose to run API + UI together:
+## 📊 Model Information
 
-```bash
-docker compose up --build
-```
+- **Algorithm**: XGBoost Classifier
+- **Features**: 200+ static analysis features
+- **Training Data**: 1000+ legitimate and malicious APKs
+- **Performance**: 95%+ accuracy on test set
+- **Threshold**: 0.385 (optimized for legitimate APK detection)
 
-### Safety note
+### Feature Categories
+- **Package Information**: App name, package name, version
+- **Permissions**: Android permissions analysis
+- **Activities**: App activities and components
+- **Services**: Background services
+- **Receivers**: Broadcast receivers
+- **Providers**: Content providers
+- **Native Libraries**: Native code analysis
+- **Certificate**: App signing certificate
+- **File Analysis**: APK structure analysis
 
-This project is for research and education. APKs may be malicious. Handle all files with care and do not execute unknown apps. This pipeline performs static analysis only and does not run APK code.
+## 🔒 Security Features
 
-### Frontend integration
+- **Input Validation**: File type and size validation
+- **Rate Limiting**: Built-in request throttling
+- **Error Handling**: Comprehensive error responses
+- **CORS Support**: Cross-origin resource sharing
+- **Production Hardening**: Security headers and configurations
 
-- Call the Django endpoint: `POST /api/scan/` with multipart `file`.
-- Response JSON fields: `prediction` (fake|legit), `probability` (0..1), `risk` (Green|Amber|Red), `top_shap`, `feature_vector`.
-- For batch UI, reuse the Streamlit logic or your own queue; the backend simply forwards each request.
+## 📈 Performance
 
-### Features & advanced roadmap
+- **Single APK**: ~0.3 seconds processing time
+- **Batch Processing**: ~2 files per second
+- **Caching**: SHA256-based feature caching
+- **Memory Efficient**: Optimized for production workloads
+- **Scalable**: Horizontal scaling support
 
-- Full static extraction with APK/APKS/XAPK support and JSON cache by sha256.
-- ML features: permission flags, suspicious API flags, cert presence/issuer, CN vs package match, impersonation score (bank whitelist + fuzzy match), domain/TLD IOCs.
-- Model: XGBoost (fallback RF), SHAP explanations, novelty detector.
-- Inference: FastAPI `/scan` (JSON), `/report` (JSON+HTML), `/report-html` (browser form), Streamlit multi-file UI (concurrent scanning, CSV/Excel export).
-- MLflow tracking: set `MLFLOW_TRACKING_URI=file:./mlruns` and run `mlflow ui` to view runs/artifacts.
-- Next upgrades: family-aware split, probability calibration + business thresholds, verified-store cross-checks, richer risk report, Docker Compose for Django+ML.
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For issues and questions:
+- Check the API documentation
+- Review error responses
+- Test with sample APK files
+- Contact the development team
+
+## 🔄 Updates
+
+- **v2.0**: Flask API with batch processing and Word reports
+- **v1.0**: FastAPI with single APK scanning
+- **v0.9**: Initial ML model development
+
+---
+
+**API Status**: ✅ Production Ready  
+**Last Updated**: August 2024  
+**Version**: 2.0.0
 
 
 

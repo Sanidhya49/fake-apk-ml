@@ -1,148 +1,118 @@
-# Frontend Integration Guide - APK Risk Scanner API
+# Frontend Integration Guide
 
-## 🚀 **Deployed API Information**
+Complete guide for integrating the Fake APK Detection API into your frontend application.
 
-### **Production URL**
-```
-https://fake-apk-ml-api.onrender.com
-```
+## 🚀 API Base URL
 
-### **Local Development URL**
 ```
-http://localhost:9000
+https://fake-apk-ml-api01.onrender.com
 ```
 
-## 📋 **API Endpoints**
+## 📋 Available Endpoints
 
-### **1. Health Check**
-```javascript
-GET /api/health
-// or
+### 1. Health Check
+```http
 GET /
 ```
 
-**Response:**
-```json
-{
-  "status": "ok",
-  "message": "Use POST /scan with multipart file 'file'"
-}
-```
-
-### **2. Model Information**
-```javascript
-GET /api/model-info
-// or
-GET /model-info
-```
-
-**Response:**
-```json
-{
-  "model_version": "20250830_232741",
-  "threshold": 0.35,
-  "feature_count": 43,
-  "is_consistent": true,
-  "predictions_consistent": true
-}
-```
-
-### **3. Single APK Scan**
-```javascript
-POST /api/scan
-// or
+### 2. Single APK Scan
+```http
 POST /scan
 ```
 
-**Parameters:**
-- `file`: APK file (multipart/form-data)
-- `debug`: "true" or "false" (optional, default: false)
-- `bypass_cache`: "true" or "false" (optional, default: false)
-- `quick`: "true" or "false" (optional, default: false)
-
-**Response:**
-```json
-{
-  "prediction": "legit",
-  "probability": 0.0417,
-  "risk": "Green",
-  "confidence": 0.9583,
-  "debug": {
-    "threshold_used": 0.35,
-    "cache_bypassed": false,
-    "cache_used": true,
-    "processing_time": 1.23
-  }
-}
-```
-
-### **4. Batch APK Scan**
-```javascript
-POST /api/scan-batch
-// or
+### 3. Batch APK Scan (Up to 15 files)
+```http
 POST /scan-batch
 ```
 
-**Parameters:**
-- `files`: Array of APK files (multipart/form-data)
-- `debug`: "true" or "false" (optional)
-- `bypass_cache`: "true" or "false" (optional)
-
-**Response:**
-```json
-{
-  "results": [
-    {
-      "file_name": "app1.apk",
-      "prediction": "legit",
-      "probability": 0.0417,
-      "risk": "Green"
-    },
-    {
-      "file_name": "app2.apk",
-      "prediction": "fake",
-      "probability": 0.571,
-      "risk": "Amber"
-    }
-  ],
-  "summary": {
-    "total": 2,
-    "legit": 1,
-    "fake": 1
-  }
-}
+### 4. Word Document Report Generation
+```http
+POST /report-batch
 ```
 
-## 🔧 **Frontend Integration Examples**
+## 🎯 Frontend Implementation Examples
 
-### **React.js Example**
+### React.js Example
+
 ```jsx
 import React, { useState } from 'react';
 
 const APKScanner = () => {
-  const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const API_URL = 'https://fake-apk-ml-api.onrender.com';
+  const handleFileChange = (e) => {
+    setFiles(Array.from(e.target.files));
+  };
 
-  const scanAPK = async () => {
-    if (!file) return;
-
-    setLoading(true);
+  const scanSingleAPK = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
 
+    const response = await fetch('https://fake-apk-ml-api01.onrender.com/scan', {
+      method: 'POST',
+      body: formData
+    });
+
+    return await response.json();
+  };
+
+  const scanBatchAPKs = async () => {
+    if (files.length > 15) {
+      alert('Maximum 15 files allowed');
+      return;
+    }
+
+    setLoading(true);
+    const formData = new FormData();
+    
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
     try {
-      const response = await fetch(`${API_URL}/scan`, {
+      const response = await fetch('https://fake-apk-ml-api01.onrender.com/scan-batch', {
         method: 'POST',
-        body: formData,
+        body: formData
       });
 
-      const data = await response.json();
-      setResult(data);
+      const result = await response.json();
+      setResults(result);
     } catch (error) {
-      console.error('Scan failed:', error);
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateWordReport = async () => {
+    if (files.length > 15) {
+      alert('Maximum 15 files allowed');
+      return;
+    }
+
+    setLoading(true);
+    const formData = new FormData();
+    
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+
+    try {
+      const response = await fetch('https://fake-apk-ml-api01.onrender.com/report-batch', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      
+      if (result.summary.report_generated) {
+        // Handle Word document download or email
+        alert('Word report generated successfully!');
+      }
+    } catch (error) {
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
@@ -150,218 +120,459 @@ const APKScanner = () => {
 
   return (
     <div>
-      <input
-        type="file"
-        accept=".apk"
-        onChange={(e) => setFile(e.target.files[0])}
+      <input 
+        type="file" 
+        multiple 
+        accept=".apk" 
+        onChange={handleFileChange}
       />
-      <button onClick={scanAPK} disabled={!file || loading}>
-        {loading ? 'Scanning...' : 'Scan APK'}
+      
+      <button onClick={scanBatchAPKs} disabled={loading}>
+        {loading ? 'Scanning...' : `Scan ${files.length} APKs`}
+      </button>
+      
+      <button onClick={generateWordReport} disabled={loading}>
+        Generate Word Report
       </button>
 
-      {result && (
+      {results && (
         <div>
-          <h3>Result:</h3>
-          <p>Prediction: {result.prediction}</p>
-          <p>Probability: {(result.probability * 100).toFixed(1)}%</p>
-          <p>Risk: {result.risk}</p>
+          <h3>Results:</h3>
+          {results.results.map((result, index) => (
+            <div key={index}>
+              <p>File: {result.file}</p>
+              <p>Prediction: {result.prediction}</p>
+              <p>Risk Level: {result.risk_level}</p>
+              <p>Confidence: {result.confidence}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 };
-
-export default APKScanner;
 ```
 
-### **JavaScript (Vanilla) Example**
+### Vanilla JavaScript Example
+
 ```javascript
 class APKScanner {
-  constructor(apiUrl = 'https://fake-apk-ml-api.onrender.com') {
-    this.apiUrl = apiUrl;
+  constructor() {
+    this.apiUrl = 'https://fake-apk-ml-api01.onrender.com';
   }
 
-  async scanSingleAPK(file, options = {}) {
+  async scanSingleAPK(file) {
     const formData = new FormData();
     formData.append('file', file);
 
-    // Add optional parameters
-    if (options.debug) formData.append('debug', 'true');
-    if (options.bypassCache) formData.append('bypass_cache', 'true');
-    if (options.quick) formData.append('quick', 'true');
+    try {
+      const response = await fetch(`${this.apiUrl}/scan`, {
+        method: 'POST',
+        body: formData
+      });
 
-    const response = await fetch(`${this.apiUrl}/scan`, {
-      method: 'POST',
-      body: formData,
-    });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Scan failed:', error);
+      throw error;
     }
-
-    return await response.json();
   }
 
-  async scanMultipleAPKs(files, options = {}) {
+  async scanBatchAPKs(files) {
+    if (files.length > 15) {
+      throw new Error('Maximum 15 files allowed');
+    }
+
     const formData = new FormData();
-    
     files.forEach(file => {
       formData.append('files', file);
     });
 
-    if (options.debug) formData.append('debug', 'true');
-    if (options.bypassCache) formData.append('bypass_cache', 'true');
+    try {
+      const response = await fetch(`${this.apiUrl}/scan-batch`, {
+        method: 'POST',
+        body: formData
+      });
 
-    const response = await fetch(`${this.apiUrl}/scan-batch`, {
-      method: 'POST',
-      body: formData,
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Batch scan failed:', error);
+      throw error;
+    }
+  }
+
+  async generateWordReport(files) {
+    if (files.length > 15) {
+      throw new Error('Maximum 15 files allowed');
+    }
+
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    try {
+      const response = await fetch(`${this.apiUrl}/report-batch`, {
+        method: 'POST',
+        body: formData
+      });
 
-    return await response.json();
-  }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-  async getModelInfo() {
-    const response = await fetch(`${this.apiUrl}/model-info`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Report generation failed:', error);
+      throw error;
     }
-    return await response.json();
-  }
-
-  async checkHealth() {
-    const response = await fetch(`${this.apiUrl}/`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
   }
 }
 
 // Usage
 const scanner = new APKScanner();
 
-// Scan single APK
-document.getElementById('fileInput').addEventListener('change', async (e) => {
+// Single APK scan
+document.getElementById('singleFile').addEventListener('change', async (e) => {
   const file = e.target.files[0];
-  if (file) {
-    try {
-      const result = await scanner.scanSingleAPK(file, { debug: true });
-      console.log('Scan result:', result);
-    } catch (error) {
-      console.error('Scan failed:', error);
-    }
+  try {
+    const result = await scanner.scanSingleAPK(file);
+    console.log('Single scan result:', result);
+  } catch (error) {
+    console.error('Error:', error);
+  }
+});
+
+// Batch APK scan
+document.getElementById('batchFiles').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files);
+  try {
+    const result = await scanner.scanBatchAPKs(files);
+    console.log('Batch scan result:', result);
+  } catch (error) {
+    console.error('Error:', error);
   }
 });
 ```
 
-### **cURL Examples**
-```bash
-# Health check
-curl -X GET "https://fake-apk-ml-api.onrender.com/"
+### Vue.js Example
 
-# Get model info
-curl -X GET "https://fake-apk-ml-api.onrender.com/model-info"
+```vue
+<template>
+  <div>
+    <input 
+      type="file" 
+      multiple 
+      accept=".apk" 
+      @change="handleFileChange"
+    />
+    
+    <button @click="scanBatch" :disabled="loading">
+      {{ loading ? 'Scanning...' : `Scan ${files.length} APKs` }}
+    </button>
+    
+    <button @click="generateReport" :disabled="loading">
+      Generate Word Report
+    </button>
 
-# Scan single APK
-curl -X POST "https://fake-apk-ml-api.onrender.com/scan" \
-  -F "file=@path/to/your/app.apk" \
-  -F "debug=true"
+    <div v-if="results">
+      <h3>Results:</h3>
+      <div v-for="(result, index) in results.results" :key="index">
+        <div :class="getRiskClass(result.risk_level)">
+          <h4>{{ result.file }}</h4>
+          <p>Prediction: {{ result.prediction }}</p>
+          <p>Risk Level: {{ result.risk_level }}</p>
+          <p>Confidence: {{ result.confidence }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 
-# Scan multiple APKs
-curl -X POST "https://fake-apk-ml-api.onrender.com/scan-batch" \
-  -F "files=@app1.apk" \
-  -F "files=@app2.apk" \
-  -F "debug=true"
-```
+<script>
+export default {
+  data() {
+    return {
+      files: [],
+      results: null,
+      loading: false
+    };
+  },
+  methods: {
+    handleFileChange(event) {
+      this.files = Array.from(event.target.files);
+    },
+    
+    async scanBatch() {
+      if (this.files.length > 15) {
+        alert('Maximum 15 files allowed');
+        return;
+      }
 
-## 🎯 **Risk Levels & Thresholds**
+      this.loading = true;
+      const formData = new FormData();
+      
+      this.files.forEach(file => {
+        formData.append('files', file);
+      });
 
-### **Current Configuration**
-- **Threshold**: 0.35 (35%)
-- **Model Version**: 20250830_232741
-- **Features**: 43 numeric features
+      try {
+        const response = await fetch('https://fake-apk-ml-api01.onrender.com/scan-batch', {
+          method: 'POST',
+          body: formData
+        });
 
-### **Risk Classification**
-- **Green**: Probability < 35% (Legitimate)
-- **Amber**: Probability ≥ 35% (Suspicious/Fake)
+        this.results = await response.json();
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        this.loading = false;
+      }
+    },
 
-### **Response Format**
-```json
-{
-  "prediction": "legit" | "fake",
-  "probability": 0.0-1.0,
-  "risk": "Green" | "Amber",
-  "confidence": 0.0-1.0
-}
-```
+    async generateReport() {
+      if (this.files.length > 15) {
+        alert('Maximum 15 files allowed');
+        return;
+      }
 
-## 🔍 **Debug Information**
+      this.loading = true;
+      const formData = new FormData();
+      
+      this.files.forEach(file => {
+        formData.append('files', file);
+      });
 
-When `debug=true` is included, the response includes additional information:
+      try {
+        const response = await fetch('https://fake-apk-ml-api01.onrender.com/report-batch', {
+          method: 'POST',
+          body: formData
+        });
 
-```json
-{
-  "debug": {
-    "threshold_used": 0.35,
-    "cache_bypassed": false,
-    "cache_used": true,
-    "processing_time": 1.23,
-    "shap_values": {
-      "feature1": 0.123,
-      "feature2": -0.456
+        const result = await response.json();
+        
+        if (result.summary.report_generated) {
+          alert('Word report generated successfully!');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    getRiskClass(riskLevel) {
+      return {
+        'risk-red': riskLevel === 'Red',
+        'risk-amber': riskLevel === 'Amber',
+        'risk-green': riskLevel === 'Green'
+      };
     }
+  }
+};
+</script>
+
+<style scoped>
+.risk-red {
+  border-left: 4px solid #dc3545;
+  padding: 10px;
+  margin: 10px 0;
+  background-color: #f8d7da;
+}
+
+.risk-amber {
+  border-left: 4px solid #ffc107;
+  padding: 10px;
+  margin: 10px 0;
+  background-color: #fff3cd;
+}
+
+.risk-green {
+  border-left: 4px solid #28a745;
+  padding: 10px;
+  margin: 10px 0;
+  background-color: #d4edda;
+}
+</style>
+```
+
+## 📊 Response Format
+
+### Single APK Scan Response
+```json
+{
+  "prediction": "legit",
+  "probability": 0.374,
+  "risk_level": "Green",
+  "confidence": "Medium",
+  "top_shap": [
+    {
+      "feature": "pkg_official",
+      "value": 1.0
+    }
+  ],
+  "feature_vector": {
+    "pkg_official": 1,
+    "impersonation_score": 0.0
+  },
+  "debug": {
+    "model_threshold": 0.385,
+    "processing_time_seconds": 0.3,
+    "cache_used": false
   }
 }
 ```
 
-## ⚠️ **Error Handling**
-
-### **Common HTTP Status Codes**
-- `200`: Success
-- `400`: Bad Request (invalid file, missing parameters)
-- `413`: Payload Too Large (file too big)
-- `500`: Internal Server Error
-
-### **Error Response Format**
+### Batch Scan Response
 ```json
 {
-  "error": "Error description",
-  "detail": "Additional error details"
+  "results": [
+    {
+      "file": "app1.apk",
+      "prediction": "legit",
+      "probability": 0.25,
+      "risk_level": "Green",
+      "confidence": "High"
+    },
+    {
+      "file": "app2.apk",
+      "prediction": "fake",
+      "probability": 0.85,
+      "risk_level": "Red",
+      "confidence": "High"
+    }
+  ],
+  "summary": {
+    "total_files": 2,
+    "processing_time_seconds": 1.2,
+    "files_per_second": 1.67,
+    "max_files_allowed": 15
+  }
 }
 ```
 
-## 🚀 **Deployment Notes**
+### Word Report Response
+```json
+{
+  "results": [...],
+  "summary": {
+    "total_files": 5,
+    "report_generated": true
+  },
+  "word_report": "artifacts/batch_report.docx"
+}
+```
 
-### **Production Environment**
-- **URL**: https://fake-apk-ml-api.onrender.com
-- **Threshold**: 0.35 (35%)
-- **Model**: XGBoost with fallback to RandomForest
-- **Features**: Static analysis of APK permissions, APIs, certificates
+## 🎨 UI/UX Best Practices
 
-### **Rate Limits**
-- Free tier: 750 hours/month
-- Request timeout: 30 seconds
-- File size limit: 100MB per APK
+### File Upload
+- **File Type Validation**: Only accept `.apk` files
+- **File Size Limits**: Show warning for files > 100MB
+- **Multiple File Support**: Allow drag-and-drop for batch uploads
+- **Progress Indicators**: Show upload and processing progress
 
-### **Caching**
-- Results are cached by file SHA256
-- Use `bypass_cache=true` to force fresh analysis
-- Cache improves response time for repeated scans
+### Results Display
+- **Risk Level Colors**: 
+  - Red: High risk (probability ≥ 0.8)
+  - Amber: Medium risk (probability ≥ 0.385)
+  - Green: Low risk (probability < 0.385)
+- **Confidence Indicators**: Show confidence level (High/Medium/Low)
+- **AI Explanations**: Display why the APK was classified as fake/legit
+- **Feature Details**: Show top contributing features
 
-## 📞 **Support**
+### Error Handling
+- **Network Errors**: Retry mechanism for failed requests
+- **File Validation**: Clear error messages for invalid files
+- **Rate Limiting**: Handle 429 responses gracefully
+- **Server Errors**: User-friendly error messages
 
-For issues or questions:
-1. Check the health endpoint first
-2. Verify model info endpoint
-3. Test with debug mode enabled
-4. Check file format and size
+### Performance Optimization
+- **Caching**: Cache results for previously scanned files
+- **Lazy Loading**: Load results progressively for large batches
+- **Background Processing**: Process files in background for better UX
+
+## 🔒 Security Considerations
+
+### File Upload Security
+- **File Type Validation**: Server-side validation of APK files
+- **File Size Limits**: Prevent large file uploads
+- **Virus Scanning**: Consider scanning uploaded files
+- **Temporary Storage**: Clean up temporary files
+
+### API Security
+- **HTTPS Only**: Always use HTTPS for API calls
+- **CORS Configuration**: Configure CORS for your domain
+- **Rate Limiting**: Implement client-side rate limiting
+- **Error Handling**: Don't expose sensitive information in errors
+
+## 📱 Mobile Considerations
+
+### File Upload
+- **Camera Integration**: Allow taking photos of APK files
+- **File Picker**: Use native file picker for better UX
+- **Offline Support**: Queue uploads when offline
+
+### UI/UX
+- **Touch-Friendly**: Large touch targets for mobile
+- **Responsive Design**: Adapt layout for different screen sizes
+- **Loading States**: Clear loading indicators
+- **Error Messages**: Mobile-friendly error displays
+
+## 🧪 Testing
+
+### Unit Testing
+```javascript
+// Test single APK scan
+test('should scan single APK successfully', async () => {
+  const file = new File(['test'], 'test.apk', { type: 'application/vnd.android.package-archive' });
+  const result = await scanner.scanSingleAPK(file);
+  expect(result.prediction).toBeDefined();
+});
+
+// Test batch scan
+test('should scan multiple APKs successfully', async () => {
+  const files = [
+    new File(['test1'], 'test1.apk', { type: 'application/vnd.android.package-archive' }),
+    new File(['test2'], 'test2.apk', { type: 'application/vnd.android.package-archive' })
+  ];
+  const result = await scanner.scanBatchAPKs(files);
+  expect(result.results).toHaveLength(2);
+});
+```
+
+### Integration Testing
+- Test with real APK files
+- Test error scenarios (network errors, invalid files)
+- Test performance with large files
+- Test batch processing limits
+
+## 🚀 Deployment Checklist
+
+- [ ] Configure CORS for your domain
+- [ ] Set up error monitoring
+- [ ] Implement rate limiting
+- [ ] Add file size validation
+- [ ] Test with real APK files
+- [ ] Monitor API performance
+- [ ] Set up logging and analytics
+
+## 📞 Support
+
+For integration support:
+- Check API documentation
+- Review error responses
+- Test with sample APK files
+- Contact the development team
 
 ---
 
-**Last Updated**: August 30, 2024
-**Model Version**: 20250830_232741
-**Threshold**: 0.35
+**Last Updated**: August 2024  
+**API Version**: 2.0.0

@@ -1,9 +1,0 @@
-[33m0edfc7e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m chore: Remove API documentation and demo batch analysis script
-[33mc626e33[m feat: Enhance HTML report with formatted feature names and improved styling
-[33m307e631[m Merge branch 'main' of https://github.com/Sanidhya49/fake-apk-ml
-[33mc06eff8[m feat: Implement WebSocket service for real-time APK analysis updates
-[33me891c59[m Deploy ML API with 0.35 threshold - Production ready for frontend integration
-[33m15a1341[m model updated
-[33m3e531c8[m updated requirements.txt
-[33m719ae58[m[33m ([m[1;31morigin/OLD[m[33m)[m Fix render.yaml: use free tier instead of paid starter
-[33me83596d[m Clean repo: ignore data/artifacts/mlruns/scan_results; keep model; add deploy files
