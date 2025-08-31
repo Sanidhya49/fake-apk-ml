@@ -1480,11 +1480,13 @@ def _generate_word_report(results: List[Dict]) -> str:
     """Generates a comprehensive Word document report for multiple APKs with AI explanations"""
     try:
         from docx import Document
-        from docx.shared import Inches, RGBColor
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
-        from docx.enum.table import WD_ALIGN_VERTICAL
+        from docx.shared import Inches, Pt, RGBColor, Cm
+        from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
+        from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
         from docx.enum.text import WD_BREAK
         from docx.oxml.shared import OxmlElement, qn
+        from docx.oxml.ns import nsdecls
+        from docx.oxml import parse_xml
         import re
     except ImportError:
         # Fallback to HTML if python-docx is not available
@@ -1544,66 +1546,275 @@ def _generate_word_report(results: List[Dict]) -> str:
                 p = doc.add_paragraph()
                 format_markdown_to_docx(line, p)
     
+    def set_cell_background(cell, color):
+        """Set background color of a cell"""
+        shading_elm = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{color}"/>')
+        cell._element.get_or_add_tcPr().append(shading_elm)
+    
+    def add_hyperlink(paragraph, text, url):
+        """Add a hyperlink to a paragraph"""
+        # This gets access to the document.xml.rels file and gets a new relation id value
+        part = paragraph.part
+        r_id = part.relate_to(url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink", is_external=True)
+        
+        # Create the w:hyperlink tag and add needed values
+        hyperlink = OxmlElement('w:hyperlink')
+        hyperlink.set(qn('r:id'), r_id)
+        
+        # Create a w:r element
+        new_run = OxmlElement('w:r')
+        
+        # Create a new w:rPr element
+        rPr = OxmlElement('w:rPr')
+        
+        # Add color if needed
+        c = OxmlElement('w:color')
+        c.set(qn('w:val'), "0000FF")
+        rPr.append(c)
+        
+        # Add underline if needed
+        u = OxmlElement('w:u')
+        u.set(qn('w:val'), "single")
+        rPr.append(u)
+        
+        # Join all the xml elements together
+        new_run.append(rPr)
+        new_run.text = text
+        hyperlink.append(new_run)
+        
+        paragraph._p.append(hyperlink)
+        return hyperlink
+    
+    # Create a new document with professional styling
     doc = Document()
     
-    # Add a cover page with better formatting
+    # Set document properties for better metadata
+    core_properties = doc.core_properties
+    core_properties.title = "APK Security Analysis Report"
+    core_properties.subject = "Mobile Application Security"
+    core_properties.creator = "Fake APK Detection System v2.0"
+    core_properties.category = "Security Analysis"
+    
+    # Create a visually appealing cover page
+    section = doc.sections[0]
+    section.left_margin = Cm(2.5)
+    section.right_margin = Cm(2.5)
+    section.top_margin = Cm(2.5)
+    section.bottom_margin = Cm(2.5)
+    
+    # Add a stylish cover page
     title = doc.add_heading('APK Security Analysis Report', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    cover_para = doc.add_paragraph('This report provides a comprehensive analysis of the security posture of the APKs scanned.')
-    cover_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    # Add a subtitle with company name
+    subtitle = doc.add_paragraph('Comprehensive Security Assessment')
+    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    subtitle.runs[0].font.size = Pt(18)
+    subtitle.runs[0].font.color.rgb = RGBColor(89, 89, 89)
     
+    # Add empty space
+    for _ in range(5):
+        doc.add_paragraph('')
+    
+    # Add visual separator
+    separator = doc.add_paragraph('_' * 50)
+    separator.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    separator.runs[0].font.color.rgb = RGBColor(89, 89, 89)
+    
+    # Add date and metadata
     date_para = doc.add_paragraph(f'Generated on: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}')
     date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    date_para.runs[0].font.size = Pt(12)
+    date_para.runs[0].font.color.rgb = RGBColor(89, 89, 89)
+    
+    # Add a document watermark/logo
+    footer_text = doc.add_paragraph('CONFIDENTIAL - FOR INTERNAL USE ONLY')
+    footer_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    footer_text.runs[0].font.size = Pt(10)
+    footer_text.runs[0].font.color.rgb = RGBColor(128, 128, 128)
     
     doc.add_page_break()
     
-    # Add Executive Summary with better formatting
-    doc.add_heading('Executive Summary', level=1)
+    # Add Table of Contents
+    doc.add_heading('Table of Contents', level=1)
+    toc_entries = [
+        "1. Executive Summary",
+        "2. Summary Table",
+        "3. Detailed Analysis",
+        "4. Security Recommendations",
+        "5. Appendix: Technical Details"
+    ]
+    
+    for entry in toc_entries:
+        p = doc.add_paragraph(entry)
+        p.paragraph_format.left_indent = Inches(0.5)
+        p.paragraph_format.line_spacing = 1.5
+    
+    doc.add_page_break()
+    
+    # Add Executive Summary with enhanced formatting
+    heading = doc.add_heading('1. Executive Summary', level=1)
+    heading.style.font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
+    
+    # Add descriptive paragraph
+    summary_intro = doc.add_paragraph('This executive summary provides a high-level overview of the security analysis conducted on the submitted APK files. The analysis evaluates each APK for potential security risks, malicious behavior, and suspicious indicators.')
+    
+    # Calculate statistics for report
     total_files = len(results)
     fake_count = sum(1 for r in results if r.get('prediction') == 'fake')
     legit_count = sum(1 for r in results if r.get('prediction') == 'legit')
     
-    # Create summary with proper formatting
-    summary_text = f"""
-**Analysis Overview:**
-- Total APKs analyzed: {total_files}
-- Legitimate APKs: {legit_count}
-- Malicious APKs: {fake_count}
-- Detection rate: {(fake_count/total_files)*100:.1f}% of files flagged as suspicious
-
-**Risk Distribution:**"""
-    
-    # Count risk levels
+    # Count risk levels with better categorization
     red_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Red')
     amber_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Amber')
     green_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Green')
     
-    summary_text += f"""
-- Red Risk (High): {red_count} APKs
-- Amber Risk (Medium): {amber_count} APKs  
-- Green Risk (Low): {green_count} APKs
-"""
+    # Add a visual 2x2 table for key metrics
+    doc.add_heading('1.1 Analysis Metrics', level=2)
+    metrics_table = doc.add_table(rows=3, cols=2)
+    metrics_table.style = 'Table Grid'
+    metrics_table.alignment = WD_TABLE_ALIGNMENT.CENTER
     
-    add_formatted_paragraph(doc, summary_text)
+    # Fill table with key metrics
+    cell = metrics_table.cell(0, 0)
+    cell.text = "Total APKs Analyzed"
+    set_cell_background(cell, "E6E6FA")  # Light lavender
+    cell = metrics_table.cell(0, 1)
+    cell.text = str(total_files)
+    
+    cell = metrics_table.cell(1, 0)
+    cell.text = "Legitimate APKs"
+    set_cell_background(cell, "E6FFE6")  # Light green
+    cell = metrics_table.cell(1, 1)
+    cell.text = f"{legit_count} ({legit_count/total_files*100:.1f}%)"
+    
+    cell = metrics_table.cell(2, 0)
+    cell.text = "Potentially Malicious APKs"
+    set_cell_background(cell, "FFEBEB")  # Light red
+    cell = metrics_table.cell(2, 1)
+    cell.text = f"{fake_count} ({fake_count/total_files*100:.1f}%)"
+    
+    # Style all cells
+    for row in metrics_table.rows:
+        for cell in row.cells:
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            paragraphs = cell.paragraphs
+            for paragraph in paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                for run in paragraph.runs:
+                    run.font.size = Pt(11)
+    
+    # Add a paragraph break
+    doc.add_paragraph('')
+    
+    # Add risk distribution table
+    doc.add_heading('1.2 Risk Distribution', level=2)
+    risk_table = doc.add_table(rows=4, cols=2)
+    risk_table.style = 'Table Grid'
+    risk_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    
+    # Header row
+    cell = risk_table.cell(0, 0)
+    cell.text = "Risk Category"
+    set_cell_background(cell, "E6E6FA")  # Light lavender
+    cell = risk_table.cell(0, 1)
+    cell.text = "Count (Percentage)"
+    set_cell_background(cell, "E6E6FA")  # Light lavender
+    
+    # Data rows with color-coded risk levels
+    cell = risk_table.cell(1, 0)
+    cell.text = "High Risk (Red)"
+    set_cell_background(cell, "FFCCCC")  # Light red
+    cell = risk_table.cell(1, 1)
+    cell.text = f"{red_count} ({red_count/total_files*100:.1f}%)"
+    
+    cell = risk_table.cell(2, 0)
+    cell.text = "Medium Risk (Amber)"
+    set_cell_background(cell, "FFEEBA")  # Light amber
+    cell = risk_table.cell(2, 1)
+    cell.text = f"{amber_count} ({amber_count/total_files*100:.1f}%)"
+    
+    cell = risk_table.cell(3, 0)
+    cell.text = "Low Risk (Green)"
+    set_cell_background(cell, "CCFFCC")  # Light green
+    cell = risk_table.cell(3, 1)
+    cell.text = f"{green_count} ({green_count/total_files*100:.1f}%)"
+    
+    # Style all cells
+    for row in risk_table.rows:
+        for cell in row.cells:
+            cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+            paragraphs = cell.paragraphs
+            for paragraph in paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                for run in paragraph.runs:
+                    run.font.size = Pt(11)
+    
+    # Add key findings summary
+    doc.add_heading('1.3 Key Findings', level=2)
+    
+    if fake_count > 0:
+        p = doc.add_paragraph()
+        p.add_run('⚠️ ').font.size = Pt(14)
+        p.add_run(f'Detected {fake_count} potentially malicious APK files that require immediate attention.').bold = True
+        p.paragraph_format.left_indent = Inches(0.25)
+    
+    if red_count > 0:
+        p = doc.add_paragraph()
+        p.add_run('🚨 ').font.size = Pt(14)
+        p.add_run(f'Found {red_count} high-risk applications with critical security concerns.').bold = True
+        p.paragraph_format.left_indent = Inches(0.25)
+    
+    if amber_count > 0:
+        p = doc.add_paragraph()
+        p.add_run('⚠️ ').font.size = Pt(14)
+        p.add_run(f'{amber_count} APKs show moderate risk indicators requiring further investigation.').bold = True
+        p.paragraph_format.left_indent = Inches(0.25)
+    
+    if green_count > 0:
+        p = doc.add_paragraph()
+        p.add_run('✅ ').font.size = Pt(14)
+        p.add_run(f'{green_count} APKs appear to be low risk with minimal security concerns.').bold = True
+        p.paragraph_format.left_indent = Inches(0.25)
+    
     doc.add_page_break()
     
-    # Add Summary Table with better formatting
-    doc.add_heading('Summary Table', level=1)
+    # Add Summary Table with enhanced formatting
+    heading = doc.add_heading('2. Summary Table', level=1)
+    heading.style.font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
+    
+    # Add descriptive paragraph
+    doc.add_paragraph('The following table provides a comprehensive summary of all analyzed APKs, highlighting key security indicators and risk assessments. Each row represents an individual APK file with its corresponding analysis results.')
+    
+    # Create a visually appealing table with more structure
     table = doc.add_table(rows=len(results) + 1, cols=6)
     table.style = 'Table Grid'
+    table.autofit = False
     
-    # Add headers with formatting
+    # Set column widths for better readability
+    table.columns[0].width = Inches(1.5)  # APK File
+    table.columns[1].width = Inches(1.5)  # App Name
+    table.columns[2].width = Inches(0.9)  # Prediction
+    table.columns[3].width = Inches(1.0)  # Risk Level
+    table.columns[4].width = Inches(1.0)  # Confidence
+    table.columns[5].width = Inches(3.1)  # Summary
+    
+    # Add headers with enhanced formatting
     headers = ['APK File', 'App Name', 'Prediction', 'Risk Level', 'Confidence', 'Summary']
     for i, header in enumerate(headers):
         cell = table.cell(0, i)
         cell.text = header
-        # Make header bold
+        set_cell_background(cell, "4472C4")  # Dark blue header background
+        
+        # Style header text as white and bold
         for paragraph in cell.paragraphs:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
             for run in paragraph.runs:
                 run.bold = True
+                run.font.color.rgb = RGBColor(255, 255, 255)  # White text
+                run.font.size = Pt(11)
     
-    # Add data rows with proper formatting
+    # Add data rows with enhanced color coding and formatting
     for i, result in enumerate(results):
         file_name = result.get('file', 'N/A')
         app_label = result.get('app_label', 'Unknown')
@@ -1618,157 +1829,651 @@ def _generate_word_report(results: List[Dict]) -> str:
         clean_explanation = re.sub(r'[#*-]', '', clean_explanation)  # Remove other markdown
         summary = clean_explanation[:150] + "..." if len(clean_explanation) > 150 else clean_explanation
         
-        table.cell(i + 1, 0).text = file_name
-        table.cell(i + 1, 1).text = app_label
-        table.cell(i + 1, 2).text = prediction
-        table.cell(i + 1, 3).text = risk
-        table.cell(i + 1, 4).text = confidence
-        table.cell(i + 1, 5).text = summary.strip()
+        # Set cell values
+        cells = [
+            (0, file_name),
+            (1, app_label),
+            (2, prediction),
+            (3, risk),
+            (4, confidence),
+            (5, summary.strip())
+        ]
+        
+        for col_idx, value in cells:
+            cell = table.cell(i + 1, col_idx)
+            cell.text = value
+            
+            # Apply cell styling
+            if col_idx == 2:  # Prediction column
+                if value.lower() == 'fake':
+                    set_cell_background(cell, "FFCCCC")  # Light red for fake
+                elif value.lower() == 'legit':
+                    set_cell_background(cell, "CCFFCC")  # Light green for legit
+            
+            if col_idx == 3:  # Risk level column
+                if value.lower() == 'red':
+                    set_cell_background(cell, "FFCCCC")  # Light red
+                elif value.lower() == 'amber':
+                    set_cell_background(cell, "FFEEBA")  # Light amber
+                elif value.lower() == 'green':
+                    set_cell_background(cell, "CCFFCC")  # Light green
+            
+            # Center align specific columns
+            if col_idx in [2, 3, 4]:  # Prediction, Risk, Confidence
+                for paragraph in cell.paragraphs:
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Apply zebra striping for better readability
+        if i % 2 == 0:
+            # Even rows get light gray background
+            for col_idx in [0, 1, 5]:  # Don't color the already colored cells
+                cell = table.cell(i + 1, col_idx)
+                set_cell_background(cell, "F2F2F2")  # Light gray
+    
+    # Add a note about the table
+    note_para = doc.add_paragraph()
+    note_para.add_run("Note: ").bold = True
+    note_para.add_run("This table provides an overview of all analyzed APKs. Red indicates high risk, Amber indicates medium risk, and Green indicates low risk. Click on each APK filename in the detailed analysis section for more information.")
+    note_para.paragraph_format.left_indent = Inches(0.25)
+    note_para.paragraph_format.space_before = Pt(12)
     
     doc.add_page_break()
     
-    # Add Detailed Analysis with improved formatting
-    doc.add_heading('Detailed Analysis', level=1)
+    # Add Detailed Analysis with enhanced visual formatting
+    heading = doc.add_heading('3. Detailed Analysis', level=1)
+    heading.style.font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
+    
+    doc.add_paragraph('This section provides an in-depth analysis of each APK file, including detailed security assessment, detected permissions, suspicious behaviors, and AI-powered risk analysis.')
+    
     for i, result in enumerate(results):
         file_name = result.get("file", "N/A")
-        doc.add_heading(f'Analysis for {file_name}', level=2)
+        prediction = result.get("prediction", "Unknown").title()
+        risk_level = result.get("risk_level", result.get("risk", "Unknown"))
         
-        # Basic info with better formatting
-        basic_info = f"""
-**Prediction:** {result.get("prediction", "Unknown").title()}
-**Risk Level:** {result.get("risk_level", result.get("risk", "Unknown"))}
-**Confidence Score:** {result.get("confidence_percentage", 0):.1f}%
-**Confidence Level:** {result.get("confidence", "Unknown")}
-        """
+        # Create a visually distinct heading for each APK with risk color coding
+        apk_heading = doc.add_heading(f'3.{i+1} {file_name}', level=2)
         
-        # Add app information if available
+        # Set heading color based on risk level
+        if risk_level.lower() == 'red':
+            apk_heading.runs[0].font.color.rgb = RGBColor(192, 0, 0)  # Dark red
+        elif risk_level.lower() == 'amber':
+            apk_heading.runs[0].font.color.rgb = RGBColor(184, 134, 11)  # Golden brown
+        else:
+            apk_heading.runs[0].font.color.rgb = RGBColor(0, 128, 0)  # Dark green
+            
+        # Create a summary box with key information
+        summary_table = doc.add_table(rows=1, cols=2)
+        summary_table.style = 'Table Grid'
+        
+        # Add verdict cell with appropriate color
+        verdict_cell = summary_table.cell(0, 0)
+        if prediction.lower() == 'fake':
+            verdict_text = "⚠️ POTENTIALLY MALICIOUS"
+            set_cell_background(verdict_cell, "FFCCCC")  # Light red
+        else:
+            verdict_text = "✓ LEGITIMATE"
+            set_cell_background(verdict_cell, "CCFFCC")  # Light green
+            
+        verdict_cell.text = verdict_text
+        verdict_cell.width = Inches(2.5)
+        
+        # Add confidence information
+        confidence_cell = summary_table.cell(0, 1)
+        confidence_score = result.get("confidence_percentage", 0)
+        confidence_level = result.get("confidence", "Unknown")
+        confidence_cell.text = f"Confidence: {confidence_score:.1f}% ({confidence_level})"
+        confidence_cell.width = Inches(3.5)
+        
+        # Format cells
+        for cell in [verdict_cell, confidence_cell]:
+            for paragraph in cell.paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                for run in paragraph.runs:
+                    run.bold = True
+                    run.font.size = Pt(12)
+        
+        doc.add_paragraph('')  # Add space
+        
+        # Create Application Information section with better formatting
         app_label = result.get('app_label', '')
         package = result.get('package', '')
         version = result.get('version', '')
         file_size = result.get('file_size', 0)
         
         if app_label or package or version:
+            app_section = doc.add_heading('Application Information', level=3)
+            app_table = doc.add_table(rows=4, cols=2)
+            app_table.style = 'Light Grid'
+            
+            # Add header row
+            header_cell = app_table.cell(0, 0)
+            header_cell.merge(app_table.cell(0, 1))
+            header_cell.text = "APPLICATION METADATA"
+            set_cell_background(header_cell, "E6E6FA")  # Light lavender
+            
+            for paragraph in header_cell.paragraphs:
+                paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                for run in paragraph.runs:
+                    run.bold = True
+            
+            # Row 1: App Name
+            app_table.cell(1, 0).text = "App Name"
+            app_table.cell(1, 1).text = app_label if app_label else "Unknown"
+            
+            # Row 2: Package
+            app_table.cell(2, 0).text = "Package"
+            app_table.cell(2, 1).text = package if package else "Unknown"
+            
+            # Row 3: Version & Size
+            app_table.cell(3, 0).text = "Version"
             file_size_str = f"{file_size / (1024*1024):.1f} MB" if file_size > 0 else "Unknown"
-            app_info = f"""
-**Application Information:**
-**App Name:** {app_label if app_label else 'Unknown'}
-**Package:** {package if package else 'Unknown'}
-**Version:** {version if version else 'Unknown'}
-**File Size:** {file_size_str}
-            """
-            add_formatted_paragraph(doc, app_info.strip())
-        add_formatted_paragraph(doc, basic_info.strip())
+            app_table.cell(3, 1).text = f"{version if version else 'Unknown'} ({file_size_str})"
+            
+            # Format first column
+            for row in range(1, 4):
+                cell = app_table.cell(row, 0)
+                set_cell_background(cell, "F2F2F2")  # Light gray
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.bold = True
         
-        # AI Explanation with proper formatting
-        doc.add_heading('AI Security Analysis', level=3)
+        doc.add_paragraph('')  # Add space
+        
+        # AI Security Analysis with visual enhancements
+        security_heading = doc.add_heading('Security Assessment', level=3)
+        
+        # Create a box for the AI explanation
         ai_explanation = result.get('ai_explanation', '') or _generate_ai_explanation(result)
-        
-        # Process and format the AI explanation
         if ai_explanation:
-            add_formatted_paragraph(doc, ai_explanation)
+            ai_box = doc.add_table(rows=1, cols=1)
+            ai_box.style = 'Light Shading'
+            
+            cell = ai_box.cell(0, 0)
+            # Different background based on verdict
+            if prediction.lower() == 'fake':
+                set_cell_background(cell, "FFF0F0")  # Very light red
+            else:
+                set_cell_background(cell, "F0FFF0")  # Very light green
+                
+            paragraph = cell.paragraphs[0]
+            format_markdown_to_docx(ai_explanation, paragraph)
         else:
-            doc.add_paragraph("AI explanation not available for this APK.")
+            doc.add_paragraph("AI security assessment not available for this APK.")
         
-        # Feature Analysis with better organization
+        doc.add_paragraph('')  # Add space
+        
+        # Feature Analysis with visual tables and icons
         doc.add_heading('Technical Analysis', level=3)
         feature_vector = result.get('feature_vector', {})
         
-        # Permissions with improved formatting
+        # Permissions with icon-based display
         permissions = [k for k, v in feature_vector.items() 
                       if k in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET', 'QUERY_ALL_PACKAGES'] 
                       and v == 1]
         
         if permissions:
-            perm_text = "**Granted Permissions:**\n"
-            for perm in permissions:
+            permission_heading = doc.add_heading('Detected Permissions', level=4)
+            
+            # Create a table for permissions with icons
+            perm_table = doc.add_table(rows=len(permissions), cols=2)
+            perm_table.style = 'Light List'
+            
+            for idx, perm in enumerate(permissions):
                 perm_display = perm.replace("_", " ").title()
-                perm_text += f"- {perm_display}\n"
-            add_formatted_paragraph(doc, perm_text.strip())
+                
+                # Add icon based on permission sensitivity
+                icon_cell = perm_table.cell(idx, 0)
+                if perm in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS']:
+                    icon_cell.text = "🔴"  # Red circle for SMS permissions
+                elif perm in ['SYSTEM_ALERT_WINDOW', 'READ_CONTACTS']:
+                    icon_cell.text = "🟠"  # Orange circle for other sensitive permissions
+                else:
+                    icon_cell.text = "🟡"  # Yellow circle for less sensitive permissions
+                
+                # Add permission name
+                perm_table.cell(idx, 1).text = perm_display
+            
+            # Set column widths
+            perm_table.columns[0].width = Inches(0.5)
+            perm_table.columns[1].width = Inches(5.5)
+        else:
+            doc.add_paragraph("✓ No sensitive permissions detected")
         
-        # Suspicious APIs with better formatting
+        # Suspicious APIs with color-coded table
         suspicious_apis = [k for k, v in feature_vector.items() if k.startswith('api_') and v == 1]
         if suspicious_apis:
-            api_text = "**Suspicious APIs Detected:**\n"
-            for api in suspicious_apis:
+            api_heading = doc.add_heading('Suspicious APIs Detected', level=4)
+            
+            # Create a table for APIs with risk indicators
+            api_table = doc.add_table(rows=len(suspicious_apis) + 1, cols=2)
+            api_table.style = 'Light Grid'
+            
+            # Add header row
+            header_cell = api_table.cell(0, 0)
+            header_cell.text = "API"
+            set_cell_background(header_cell, "FFD6D6")  # Light red
+            
+            header_cell = api_table.cell(0, 1)
+            header_cell.text = "Security Implication"
+            set_cell_background(header_cell, "FFD6D6")  # Light red
+            
+            for paragraph in header_cell.paragraphs:
+                for run in paragraph.runs:
+                    run.bold = True
+            
+            # Map APIs to their security implications
+            api_implications = {
+                "api_getDeviceId": "May collect device identifiers",
+                "api_sendTextMessage": "Can send SMS messages (potential premium SMS fraud)",
+                "api_SmsManager": "Can manage SMS messages (potential data exfiltration)",
+                "api_DexClassLoader": "Dynamic code loading (potential obfuscation/evasion)",
+                "api_TYPE_SYSTEM_ALERT_WINDOW": "Can display overlays (potential phishing attacks)",
+                "api_addView": "May add UI elements (potential for overlay attacks)",
+                "api_HttpURLConnection": "Network communication capability",
+                "api_openConnection": "Network communication capability"
+            }
+            
+            for idx, api in enumerate(suspicious_apis):
                 api_name = api.replace('api_', '').replace('_', ' ').title()
-                api_text += f"- {api_name}\n"
-            add_formatted_paragraph(doc, api_text.strip())
+                
+                # Add API name and implication
+                api_table.cell(idx + 1, 0).text = api_name
+                api_table.cell(idx + 1, 1).text = api_implications.get(api, "Potentially suspicious behavior")
+                
+                # Set background color for the API name cell
+                set_cell_background(api_table.cell(idx + 1, 0), "FFF0F0")  # Very light red
         
-        # SHAP Analysis with enhanced formatting
+        # SHAP Analysis with enhanced visual table
         if result.get('top_shap'):
-            doc.add_heading('Top Contributing Features (SHAP Analysis)', level=4)
-            shap_text = "**Feature Impact Analysis:**\n"
-            for item in result.get('top_shap', []):
+            shap_heading = doc.add_heading('Feature Impact Analysis (SHAP)', level=4)
+            
+            # Create table for SHAP values
+            shap_table = doc.add_table(rows=len(result.get('top_shap', [])) + 1, cols=3)
+            shap_table.style = 'Light Grid'
+            
+            # Add header row
+            headers = ["Feature", "Impact Value", "Risk Effect"]
+            for i, header in enumerate(headers):
+                cell = shap_table.cell(0, i)
+                cell.text = header
+                set_cell_background(cell, "E6E6FA")  # Light lavender
+                
+                for paragraph in cell.paragraphs:
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    for run in paragraph.runs:
+                        run.bold = True
+            
+            # Add SHAP values with visual indicators
+            for idx, item in enumerate(result.get('top_shap', [])):
                 feature_name = item.get('feature', 'Unknown').replace('_', ' ').title()
                 value = item.get('value', 0)
-                impact = "increases risk" if value > 0 else "decreases risk"
-                shap_text += f"- **{feature_name}**: {value:+.4f} ({impact})\n"
-            add_formatted_paragraph(doc, shap_text.strip())
+                impact = "Increases Risk" if value > 0 else "Decreases Risk"
+                
+                # Add feature name
+                shap_table.cell(idx + 1, 0).text = feature_name
+                
+                # Add SHAP value with sign
+                value_cell = shap_table.cell(idx + 1, 1)
+                value_cell.text = f"{value:+.4f}"
+                
+                # Center align value
+                for paragraph in value_cell.paragraphs:
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                # Add impact with color coding
+                impact_cell = shap_table.cell(idx + 1, 2)
+                impact_cell.text = impact
+                
+                # Set background color based on impact
+                if value > 0:
+                    set_cell_background(impact_cell, "FFCCCC")  # Light red for increasing risk
+                else:
+                    set_cell_background(impact_cell, "CCFFCC")  # Light green for decreasing risk
+                    
+                # Center align impact
+                for paragraph in impact_cell.paragraphs:
+                    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
-        # Additional technical details
+        # Additional technical details in a clean table format
         if result.get('debug'):
-            doc.add_heading('Technical Details', level=4)
+            tech_heading = doc.add_heading('Technical Details', level=4)
             debug_info = result['debug']
-            tech_text = f"""**Processing Information:**
-- Processing Time: {debug_info.get('processing_time_seconds', 0):.3f} seconds
-- Cache Used: {"Yes" if debug_info.get('cache_used', False) else "No"}
-- Model Threshold: {debug_info.get('model_threshold', 0):.3f}
-- SHA256: {debug_info.get('sha256', 'N/A')[:16]}...
-            """
-            add_formatted_paragraph(doc, tech_text.strip())
+            
+            # Create technical details table
+            tech_table = doc.add_table(rows=4, cols=2)
+            tech_table.style = 'Light Grid'
+            
+            # Row 1: Processing Time
+            tech_table.cell(0, 0).text = "Processing Time"
+            tech_table.cell(0, 1).text = f"{debug_info.get('processing_time_seconds', 0):.3f} seconds"
+            
+            # Row 2: Cache Status
+            tech_table.cell(1, 0).text = "Cache Used"
+            tech_table.cell(1, 1).text = "Yes" if debug_info.get('cache_used', False) else "No"
+            
+            # Row 3: Model Threshold
+            tech_table.cell(2, 0).text = "Model Threshold"
+            tech_table.cell(2, 1).text = f"{debug_info.get('model_threshold', 0):.3f}"
+            
+            # Row 4: SHA256
+            tech_table.cell(3, 0).text = "SHA256"
+            sha256 = debug_info.get('sha256', 'N/A')
+            tech_table.cell(3, 1).text = f"{sha256[:16]}..." if len(sha256) > 16 else sha256
+            
+            # Format left column
+            for row in range(4):
+                cell = tech_table.cell(row, 0)
+                set_cell_background(cell, "F2F2F2")  # Light gray
+                for paragraph in cell.paragraphs:
+                    for run in paragraph.runs:
+                        run.bold = True
         
         # Add separator between APK analyses
         if i < len(results) - 1:
             doc.add_page_break()
     
-    # Add comprehensive Security Recommendations
-    doc.add_heading('Security Recommendations', level=1)
-    recommendations_text = """
-**Immediate Actions:**
-- Review all RED risk APKs immediately and consider blocking/quarantining
-- Investigate AMBER risk APKs thoroughly before deployment
-- Verify the source and authenticity of all suspicious applications
-
-**Security Best Practices:**
-- Implement regular APK scanning before deployment
-- Establish a security review process for all mobile applications
-- Monitor for new threats and update security policies accordingly
-- Consider implementing additional runtime protection measures
-
-**Risk Mitigation Strategies:**
-- For high-risk APKs: Perform detailed manual analysis and sandbox testing
-- For medium-risk APKs: Implement additional monitoring and access controls  
-- For all APKs: Verify digital signatures and certificate chains
-- Maintain an updated whitelist of trusted application sources
-    """
+    # Add comprehensive Security Recommendations with visual elements
+    heading = doc.add_heading('4. Security Recommendations', level=1)
+    heading.style.font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
     
-    add_formatted_paragraph(doc, recommendations_text.strip())
+    doc.add_paragraph('Based on the analysis of the submitted APKs, the following security recommendations are provided to address identified risks and strengthen your mobile application security posture.')
     
-    # Add footer with metadata
-    doc.add_paragraph()
-    footer_text = f"""
-**Report Metadata:**
-- Generated by: APK Security Analysis System v2.0
-- Analysis Engine: XGBoost with SHAP explainability
-- Total Processing Time: {sum(r.get('debug', {}).get('processing_time_seconds', 0) for r in results):.2f} seconds
-- Report Generation: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
-    """
-    add_formatted_paragraph(doc, footer_text.strip())
+    # Create a visually appealing recommendations section with priority levels
+    
+    # Critical Actions Section with Red Border
+    critical_heading = doc.add_heading('4.1 Critical Actions', level=2)
+    critical_heading.style.font.color.rgb = RGBColor(192, 0, 0)  # Dark red
+    
+    critical_table = doc.add_table(rows=1, cols=1)
+    critical_table.style = 'Light Grid Accent 2'
+    
+    cell = critical_table.cell(0, 0)
+    set_cell_background(cell, "FFEBEB")  # Very light red
+    
+    p = cell.paragraphs[0]
+    p.add_run("🚨 HIGH PRIORITY ACTIONS").bold = True
+    
+    red_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Red')
+    fake_count = sum(1 for r in results if r.get('prediction') == 'fake')
+    
+    actions_list = [
+        f"Immediately quarantine and investigate the {fake_count} potentially malicious APKs identified in this report",
+        f"Review all {red_count} high-risk (RED) applications with your security team",
+        "Verify certificate chains and digital signatures for all suspicious applications",
+        "Implement runtime monitoring for applications with suspicious API usage",
+        "Conduct manual security review of applications requesting SMS permissions"
+    ]
+    
+    bullet_list = doc.add_paragraph(style='List Bullet')
+    bullet_list.paragraph_format.left_indent = Inches(0.25)
+    
+    for action in actions_list:
+        if action == actions_list[0]:
+            bullet_list.add_run(action)
+        else:
+            new_para = doc.add_paragraph(style='List Bullet')
+            new_para.paragraph_format.left_indent = Inches(0.25)
+            new_para.add_run(action)
+    
+    doc.add_paragraph('')  # Add space
+    
+    # Best Practices Section with Blue Border
+    practices_heading = doc.add_heading('4.2 Security Best Practices', level=2)
+    practices_heading.style.font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
+    
+    best_practices_table = doc.add_table(rows=1, cols=2)
+    best_practices_table.style = 'Light Grid Accent 5'
+    
+    # Column headers
+    cell = best_practices_table.cell(0, 0)
+    cell.text = "Prevention"
+    set_cell_background(cell, "E6F0FF")  # Light blue
+    
+    cell = best_practices_table.cell(0, 1)
+    cell.text = "Detection & Response"
+    set_cell_background(cell, "E6F0FF")  # Light blue
+    
+    # Style headers
+    for cell in best_practices_table.rows[0].cells:
+        for paragraph in cell.paragraphs:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in paragraph.runs:
+                run.bold = True
+                run.font.size = Pt(11)
+    
+    # Add rows for each practice
+    practices = [
+        ("Implement a formal app vetting process before deployment", 
+         "Establish continuous monitoring for suspicious app behaviors"),
+        ("Verify application sources and use only trusted app stores", 
+         "Create an incident response plan for malicious app detection"),
+        ("Deploy mobile threat defense (MTD) solutions on devices", 
+         "Regularly scan all installed applications for security issues"),
+        ("Implement app-level containerization for sensitive applications", 
+         "Monitor for data exfiltration attempts through network traffic"),
+        ("Enforce certificate pinning for sensitive applications", 
+         "Maintain logs of application behavior for forensic analysis")
+    ]
+    
+    for prevention, detection in practices:
+        row_cells = best_practices_table.add_row().cells
+        row_cells[0].text = f"✓ {prevention}"
+        row_cells[1].text = f"✓ {detection}"
+    
+    doc.add_paragraph('')  # Add space
+    
+    # Risk Mitigation Strategies with visual table
+    strategies_heading = doc.add_heading('4.3 Risk Mitigation Strategies', level=2)
+    
+    # Create 3-column table for different risk levels
+    risk_table = doc.add_table(rows=1, cols=3)
+    risk_table.style = 'Light Shading Accent 1'
+    
+    # Define column headers with color coding
+    headers = [
+        ("High Risk (Red)", "FFCCCC"),  # Light red
+        ("Medium Risk (Amber)", "FFEEBA"),  # Light amber
+        ("Low Risk (Green)", "CCFFCC")  # Light green
+    ]
+    
+    # Add headers with colors
+    for i, (header_text, color) in enumerate(headers):
+        cell = risk_table.cell(0, i)
+        cell.text = header_text
+        set_cell_background(cell, color)
+        
+        for paragraph in cell.paragraphs:
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in paragraph.runs:
+                run.bold = True
+    
+    # Add a row with strategies for each risk level
+    strategies_row = risk_table.add_row().cells
+    
+    # High Risk strategies
+    strategies_row[0].text = ("• Conduct full code review and analysis\n"
+                           "• Perform dynamic and static security testing\n"
+                           "• Analyze in a sandbox environment\n"
+                           "• Block from production environments\n"
+                           "• Consider reverse engineering for malware analysis")
+    
+    # Medium Risk strategies
+    strategies_row[1].text = ("• Review requested permissions and APIs\n"
+                           "• Test on isolated devices first\n"
+                           "• Monitor runtime behavior\n"
+                           "• Implement additional access controls\n"
+                           "• Verify developer authenticity")
+    
+    # Low Risk strategies
+    strategies_row[2].text = ("• Apply standard security policies\n"
+                           "• Update regularly to latest versions\n"
+                           "• Include in routine security scans\n"
+                           "• Document baseline behavior\n"
+                           "• Monitor for deviation from normal patterns")
+    
+    # Add space before appendix
+    doc.add_page_break()
+    
+    # Add appendix with metadata and information about the report
+    appendix_heading = doc.add_heading('5. Appendix: Technical Details', level=1)
+    appendix_heading.style.font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
+    
+    doc.add_heading('5.1 Report Information', level=2)
+    
+    # Create metadata table
+    metadata_table = doc.add_table(rows=5, cols=2)
+    metadata_table.style = 'Light Grid'
+    
+    # Row 1: Report Generation Date
+    metadata_table.cell(0, 0).text = "Report Generation Date"
+    metadata_table.cell(0, 1).text = __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+    
+    # Row 2: Analysis System
+    metadata_table.cell(1, 0).text = "Analysis System"
+    metadata_table.cell(1, 1).text = "Fake APK Detection System v2.0"
+    
+    # Row 3: ML Model
+    metadata_table.cell(2, 0).text = "ML Model"
+    metadata_table.cell(2, 1).text = "XGBoost with SHAP explainability"
+    
+    # Row 4: Processing Time
+    metadata_table.cell(3, 0).text = "Total Processing Time"
+    metadata_table.cell(3, 1).text = f"{sum(r.get('debug', {}).get('processing_time_seconds', 0) for r in results):.2f} seconds"
+    
+    # Row 5: Files Analyzed
+    metadata_table.cell(4, 0).text = "Files Analyzed"
+    metadata_table.cell(4, 1).text = str(len(results))
+    
+    # Format left column
+    for row in range(5):
+        cell = metadata_table.cell(row, 0)
+        set_cell_background(cell, "F2F2F2")  # Light gray
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.bold = True
+    
+    # Add space
+    doc.add_paragraph('')
+    
+    # Add disclaimer
+    doc.add_heading('5.2 Disclaimer', level=2)
+    
+    disclaimer_box = doc.add_table(rows=1, cols=1)
+    disclaimer_box.style = 'Light Grid'
+    
+    cell = disclaimer_box.cell(0, 0)
+    set_cell_background(cell, "F9F9F9")  # Very light gray
+    
+    p = cell.paragraphs[0]
+    p.add_run("DISCLAIMER: ").bold = True
+    p.add_run("This report is generated through automated analysis and should be used as a guidance tool only. False positives and false negatives are possible. Always conduct thorough manual verification of high-risk applications. This report does not constitute legal advice or certification of application safety.")
+    
+    # Add a signature section
+    doc.add_paragraph('')
+    signature_para = doc.add_paragraph("Report generated by Fake APK Detection System")
+    signature_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    
+    # Apply final document styling and save
+    # Add page numbers at the footer
+    section = doc.sections[0]
+    footer = section.footer
+    paragraph = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = paragraph.add_run()
+    run.add_text("Page ")
+    
+    field_code = "PAGE"
+    fldChar = OxmlElement('w:fldChar')
+    fldChar.set(qn('w:fldCharType'), 'begin')
+    
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = field_code
+    
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+    
+    r_element = run._r
+    r_element.append(fldChar)
+    r_element.append(instrText)
+    r_element.append(fldChar2)
+    
+    run = paragraph.add_run()
+    run.add_text(" of ")
+    
+    field_code = "NUMPAGES"
+    fldChar = OxmlElement('w:fldChar')
+    fldChar.set(qn('w:fldCharType'), 'begin')
+    
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = field_code
+    
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+    
+    r_element = run._r
+    r_element.append(fldChar)
+    r_element.append(instrText)
+    r_element.append(fldChar2)
     
     # Save the document to a BytesIO object and return as base64
     import io
     import base64
     
-    # Save to BytesIO instead of file
-    doc_buffer = io.BytesIO()
-    doc.save(doc_buffer)
-    doc_buffer.seek(0)
-    
-    # Convert to base64
-    doc_base64 = base64.b64encode(doc_buffer.read()).decode('utf-8')
-    doc_buffer.close()
-    
-    return doc_base64
+    try:
+        # Save to BytesIO instead of file
+        doc_buffer = io.BytesIO()
+        doc.save(doc_buffer)
+        doc_buffer.seek(0)
+        
+        # Convert to base64
+        doc_base64 = base64.b64encode(doc_buffer.read()).decode('utf-8')
+        doc_buffer.close()
+        
+        return doc_base64
+    except Exception as e:
+        # If we get an error with the enhanced version, fall back to simpler version
+        print(f"Error in enhanced Word document generation: {e}, falling back to simple version")
+        
+        # Create a simpler document without advanced features
+        doc = Document()
+        
+        # Add a simple title
+        doc.add_heading('APK Security Analysis Report', 0)
+        
+        # Add basic summary
+        doc.add_heading('Summary', level=1)
+        doc.add_paragraph(f'Total APKs analyzed: {len(results)}')
+        doc.add_paragraph(f'Generated on: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}')
+        
+        # Add simple table
+        table = doc.add_table(rows=len(results) + 1, cols=4)
+        table.style = 'Table Grid'
+        
+        # Add headers
+        table.cell(0, 0).text = 'APK File'
+        table.cell(0, 1).text = 'Prediction'
+        table.cell(0, 2).text = 'Risk Level'
+        table.cell(0, 3).text = 'Confidence'
+        
+        # Add data rows
+        for i, result in enumerate(results):
+            table.cell(i + 1, 0).text = result.get('file', 'N/A')
+            table.cell(i + 1, 1).text = result.get('prediction', 'Unknown').title()
+            table.cell(i + 1, 2).text = result.get('risk_level', result.get('risk', 'Unknown'))
+            table.cell(i + 1, 3).text = f'{result.get("confidence_percentage", 0):.1f}%'
+        
+        # Try saving the simple version
+        doc_buffer = io.BytesIO()
+        doc.save(doc_buffer)
+        doc_buffer.seek(0)
+        
+        # Convert to base64
+        doc_base64 = base64.b64encode(doc_buffer.read()).decode('utf-8')
+        doc_buffer.close()
+        
+        return doc_base64
 
 def _generate_html_batch_report(results: List[Dict]) -> str:
     """Fallback HTML report generation if python-docx is not available"""
