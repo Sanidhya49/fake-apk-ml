@@ -311,7 +311,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         if debug:
             result["debug"] = {
                 "processing_time_seconds": time.time() - start_time,
-                "cache_used": sha in cache,
+                "cache_used": os.path.exists(cache_path) if 'cache_path' in locals() else False,
                 "model_threshold": float(threshold),
                 "saved_tuned_threshold": float(saved_thr),
                 "pred_initial": int(pred_initial),
