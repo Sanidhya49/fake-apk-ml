@@ -381,6 +381,10 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             "processing_time": time.time() - start_time,
             "model_threshold": threshold,
             "cache_used": os.path.exists(cache_path) if 'cache_path' in locals() else False,
+            "app_label": ext.get("app_label", ""),  # Add app label from extracted data
+            "package": ext.get("package", ""),  # Add package name
+            "version": ext.get("version", ""),  # Add version
+            "file_size": ext.get("file_size", 0),  # Add file size
         }
         
         # Add AI explanation
@@ -736,7 +740,22 @@ def _render_html_report(result: Dict, filename: str) -> str:
     top = result.get("top_shap", [])
     pred = result.get("prediction", "unknown")
     prob = result.get("probability", 0)
-    risk = result.get("risk", "Unknown")
+    risk = result.get("risk_level", "Unknown")
+    
+    # Get app metadata
+    app_label = result.get("app_label", "")
+    package = result.get("package", "")
+    version = result.get("version", "")
+    file_size = result.get("file_size", 0)
+    
+    # Format file size
+    if file_size > 0:
+        if file_size > 1024 * 1024:
+            file_size_str = f"{file_size / (1024 * 1024):.1f} MB"
+        else:
+            file_size_str = f"{file_size / 1024:.1f} KB"
+    else:
+        file_size_str = "Unknown"
     
     def format_feature_name(name):
         """Convert feature name to proper title case without underscores"""
@@ -893,6 +912,15 @@ def _render_html_report(result: Dict, filename: str) -> str:
                 font-size: 1.2em;
                 font-weight: 300;
             }}
+            .app-info {{
+                margin-top: 15px !important;
+                font-size: 1em !important;
+                background: rgba(255, 255, 255, 0.1);
+                padding: 12px 20px;
+                border-radius: 8px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }}
             .content {{
                 padding: 40px;
             }}
@@ -948,6 +976,43 @@ def _render_html_report(result: Dict, filename: str) -> str:
                 content: '🔍';
                 margin-right: 10px;
                 font-size: 1.2em;
+            }}
+            .app-metadata {{
+                margin-top: 20px;
+            }}
+            .metadata-grid {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 15px;
+                margin-top: 15px;
+            }}
+            .metadata-item {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                transition: all 0.2s ease;
+            }}
+            .metadata-item:hover {{
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            }}
+            .metadata-label {{
+                font-weight: 600;
+                color: #64748b;
+                font-size: 0.9em;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }}
+            .metadata-value {{
+                font-weight: 500;
+                color: #1e293b;
+                font-size: 0.95em;
+                word-break: break-all;
+            }}
             }}
             .permissions-grid {{
                 display: grid;
@@ -1097,6 +1162,7 @@ def _render_html_report(result: Dict, filename: str) -> str:
                 <div class="header-content">
                     <h1>🛡️ APK Security Analysis</h1>
                     <p>Comprehensive security analysis for <strong>{filename}</strong></p>
+                    {f'<p class="app-info">📱 <strong>{app_label}</strong> • 📦 {package} • 🔢 v{version} • 📏 {file_size_str}</p>' if app_label else ''}
                 </div>
             </div>
             
@@ -1119,6 +1185,32 @@ def _render_html_report(result: Dict, filename: str) -> str:
                         <p class="value">{prob:.3f}</p>
                     </div>
                 </div>
+                
+                {f'''
+                <div class="section">
+                    <h2>📱 Application Information</h2>
+                    <div class="app-metadata">
+                        <div class="metadata-grid">
+                            <div class="metadata-item">
+                                <span class="metadata-label">App Name:</span>
+                                <span class="metadata-value">{app_label}</span>
+                            </div>
+                            <div class="metadata-item">
+                                <span class="metadata-label">Package:</span>
+                                <span class="metadata-value">{package}</span>
+                            </div>
+                            <div class="metadata-item">
+                                <span class="metadata-label">Version:</span>
+                                <span class="metadata-value">{version}</span>
+                            </div>
+                            <div class="metadata-item">
+                                <span class="metadata-label">File Size:</span>
+                                <span class="metadata-value">{file_size_str}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ''' if app_label else ''}
                 
                 <div class="section">
                     <h2>Top Contributing Features</h2>
@@ -1481,11 +1573,11 @@ def _generate_word_report(results: List[Dict]) -> str:
     
     # Add Summary Table with better formatting
     doc.add_heading('Summary Table', level=1)
-    table = doc.add_table(rows=len(results) + 1, cols=5)
+    table = doc.add_table(rows=len(results) + 1, cols=6)
     table.style = 'Table Grid'
     
     # Add headers with formatting
-    headers = ['APK File', 'Prediction', 'Risk Level', 'Confidence', 'Summary']
+    headers = ['APK File', 'App Name', 'Prediction', 'Risk Level', 'Confidence', 'Summary']
     for i, header in enumerate(headers):
         cell = table.cell(0, i)
         cell.text = header
@@ -1497,6 +1589,7 @@ def _generate_word_report(results: List[Dict]) -> str:
     # Add data rows with proper formatting
     for i, result in enumerate(results):
         file_name = result.get('file', 'N/A')
+        app_label = result.get('app_label', 'Unknown')
         prediction = result.get('prediction', 'Unknown').title()
         risk = result.get('risk_level', result.get('risk', 'Unknown'))
         confidence = f'{result.get("probability", 0):.1%}'
@@ -1509,10 +1602,11 @@ def _generate_word_report(results: List[Dict]) -> str:
         summary = clean_explanation[:150] + "..." if len(clean_explanation) > 150 else clean_explanation
         
         table.cell(i + 1, 0).text = file_name
-        table.cell(i + 1, 1).text = prediction
-        table.cell(i + 1, 2).text = risk
-        table.cell(i + 1, 3).text = confidence
-        table.cell(i + 1, 4).text = summary.strip()
+        table.cell(i + 1, 1).text = app_label
+        table.cell(i + 1, 2).text = prediction
+        table.cell(i + 1, 3).text = risk
+        table.cell(i + 1, 4).text = confidence
+        table.cell(i + 1, 5).text = summary.strip()
     
     doc.add_page_break()
     
@@ -1529,6 +1623,23 @@ def _generate_word_report(results: List[Dict]) -> str:
 **Confidence Score:** {result.get("probability", 0):.1%}
 **Confidence Level:** {result.get("confidence", "Unknown")}
         """
+        
+        # Add app information if available
+        app_label = result.get('app_label', '')
+        package = result.get('package', '')
+        version = result.get('version', '')
+        file_size = result.get('file_size', 0)
+        
+        if app_label or package or version:
+            file_size_str = f"{file_size / (1024*1024):.1f} MB" if file_size > 0 else "Unknown"
+            app_info = f"""
+**Application Information:**
+**App Name:** {app_label if app_label else 'Unknown'}
+**Package:** {package if package else 'Unknown'}
+**Version:** {version if version else 'Unknown'}
+**File Size:** {file_size_str}
+            """
+            add_formatted_paragraph(doc, app_info.strip())
         add_formatted_paragraph(doc, basic_info.strip())
         
         # AI Explanation with proper formatting
@@ -1779,6 +1890,18 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
                 border-radius: 8px;
                 margin: 15px 0;
             }
+            .app-info {
+                background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+                padding: 20px;
+                border-radius: 8px;
+                margin: 15px 0;
+                border: 1px solid #bae6fd;
+            }
+            .app-info h3 {
+                color: #0369a1;
+                margin-top: 0;
+                margin-bottom: 15px;
+            }
             .feature-list {
                 columns: 2;
                 column-gap: 30px;
@@ -1863,6 +1986,21 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
         probability = result.get('probability', 0)
         confidence = result.get('confidence', 'Unknown')
         
+        # Get app metadata
+        app_label = result.get('app_label', '')
+        package = result.get('package', '')
+        version = result.get('version', '')
+        file_size = result.get('file_size', 0)
+        
+        # Format file size
+        if file_size > 0:
+            if file_size > 1024 * 1024:
+                file_size_str = f"{file_size / (1024 * 1024):.1f} MB"
+            else:
+                file_size_str = f"{file_size / 1024:.1f} KB"
+        else:
+            file_size_str = "Unknown"
+        
         # Get AI explanation with proper formatting
         ai_explanation = result.get('ai_explanation', '') or _generate_ai_explanation(result)
         formatted_ai_explanation = format_markdown_to_html(ai_explanation)
@@ -1873,6 +2011,30 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
         html += f"""
         <div class="apk-analysis {pred_class}">
             <h2>📱 Analysis #{i}: {result.get('file', 'N/A')}</h2>
+            
+            {f'''
+            <div class="app-info">
+                <h3>📋 Application Information</h3>
+                <div class="analysis-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">{app_label if app_label else 'Unknown'}</div>
+                        <div>App Name</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{package if package else 'Unknown'}</div>
+                        <div>Package</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{version if version else 'Unknown'}</div>
+                        <div>Version</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">{file_size_str}</div>
+                        <div>File Size</div>
+                    </div>
+                </div>
+            </div>
+            ''' if app_label or package or version else ''}
             
             <div class="analysis-grid">
                 <div class="stat-card">
