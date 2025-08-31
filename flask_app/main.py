@@ -467,7 +467,7 @@ def health_check():
 
 @app.route('/scan', methods=['POST'])
 def scan_single():
-    """Scan a single APK file (optimized)"""
+    """Scan a single APK file with comprehensive analysis and feature extraction"""
     start_time = time.time()
     
     try:
@@ -497,6 +497,7 @@ def scan_single():
         # Get query parameters
         quick = request.args.get('quick', 'false').lower() == 'true'
         debug = request.args.get('debug', 'false').lower() == 'true'
+        include_features = request.args.get('include_features', 'true').lower() == 'true'
         
         # Save uploaded file temporarily
         filename = secure_filename(file.filename)
@@ -508,22 +509,125 @@ def scan_single():
             # Make sure directories exist
             ensure_dirs()
             
-            # Predict (with timing)
-            result = process_single_apk(temp_file.name, quick=quick, debug=debug)
+            # Process APK with comprehensive analysis
+            result = process_single_apk(temp_file.name, quick=quick, debug=True)
             
-            # Add original filename
+            # Add original filename and upload info
             result["file"] = file.filename
+            result["upload_size"] = file_size
+            result["upload_timestamp"] = time.time()
             
-            # Add performance metrics
+            # Enhanced feature extraction and analysis
+            if include_features and "feature_vector" in result:
+                feature_vector = result["feature_vector"]
+                
+                # Extract and categorize permissions
+                permissions = {
+                    "granted": [],
+                    "sensitive": [],
+                    "dangerous": []
+                }
+                
+                permission_categories = {
+                    "sensitive": ["READ_SMS", "SEND_SMS", "RECEIVE_SMS", "READ_CONTACTS", "SYSTEM_ALERT_WINDOW"],
+                    "dangerous": ["READ_SMS", "SEND_SMS", "RECEIVE_SMS", "SYSTEM_ALERT_WINDOW"],
+                    "network": ["INTERNET"],
+                    "storage": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+                }
+                
+                for perm, value in feature_vector.items():
+                    if perm in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET'] and value == 1:
+                        permissions["granted"].append(perm)
+                        if perm in permission_categories["sensitive"]:
+                            permissions["sensitive"].append(perm)
+                        if perm in permission_categories["dangerous"]:
+                            permissions["dangerous"].append(perm)
+                
+                result["permissions_analysis"] = permissions
+                
+                # Extract suspicious APIs with descriptions
+                suspicious_apis = []
+                api_descriptions = {
+                    "api_getDeviceId": "Device identifier collection - potential privacy concern",
+                    "api_sendTextMessage": "SMS sending capability - potential premium SMS fraud",
+                    "api_SmsManager": "SMS management - potential message interception",
+                    "api_DexClassLoader": "Dynamic code loading - potential code obfuscation",
+                    "api_TYPE_SYSTEM_ALERT_WINDOW": "System overlay capability - potential phishing attacks",
+                    "api_addView": "UI manipulation - potential overlay attacks",
+                    "api_HttpURLConnection": "Network communication - data transmission capability",
+                    "api_openConnection": "Network connection - remote server communication"
+                }
+                
+                for api, value in feature_vector.items():
+                    if api.startswith('api_') and value == 1:
+                        suspicious_apis.append({
+                            "api": api.replace('api_', ''),
+                            "description": api_descriptions.get(api, "Potentially suspicious behavior"),
+                            "risk_level": "high" if api in ["api_sendTextMessage", "api_SmsManager", "api_DexClassLoader"] else "medium"
+                        })
+                
+                result["suspicious_apis_analysis"] = suspicious_apis
+                
+                # Security indicators summary
+                security_indicators = {
+                    "has_sms_permissions": any(feature_vector.get(p, 0) == 1 for p in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS']),
+                    "has_contacts_access": feature_vector.get('READ_CONTACTS', 0) == 1,
+                    "has_system_overlay": feature_vector.get('SYSTEM_ALERT_WINDOW', 0) == 1,
+                    "has_internet_access": feature_vector.get('INTERNET', 0) == 1,
+                    "suspicious_api_count": feature_vector.get('count_suspicious', 0),
+                    "has_valid_certificate": feature_vector.get('cert_present', 0) == 1,
+                    "is_official_package": feature_vector.get('pkg_official', 0) == 1,
+                    "certificate_issues": not feature_vector.get('cert_present', 0) == 1
+                }
+                
+                result["security_indicators"] = security_indicators
+                
+                # Risk assessment details
+                risk_factors = []
+                if security_indicators["has_sms_permissions"]:
+                    risk_factors.append("SMS permissions detected - potential for premium SMS fraud")
+                if security_indicators["has_contacts_access"]:
+                    risk_factors.append("Contacts access - potential data harvesting")
+                if security_indicators["has_system_overlay"]:
+                    risk_factors.append("System overlay permission - potential phishing attacks")
+                if security_indicators["suspicious_api_count"] > 3:
+                    risk_factors.append(f"Multiple suspicious APIs ({security_indicators['suspicious_api_count']}) detected")
+                if not security_indicators["has_valid_certificate"]:
+                    risk_factors.append("No valid certificate - integrity concerns")
+                if not security_indicators["is_official_package"]:
+                    risk_factors.append("Unofficial package source - trustworthiness concerns")
+                
+                result["risk_factors"] = risk_factors
+            
+            # Add comprehensive performance metrics
             processing_time = time.time() - start_time
-            if debug and "debug" in result:
-                result["debug"]["processing_time_seconds"] = round(processing_time, 3)
-            elif debug:
-                result["debug"] = {"processing_time_seconds": round(processing_time, 3)}
+            result["performance_metrics"] = {
+                "total_processing_time": round(processing_time, 3),
+                "analysis_timestamp": time.time(),
+                "cache_hit": result.get("cache_used", False),
+                "model_version": "2.0",
+                "api_version": "2.0"
+            }
+            
+            # Add debug information if requested
+            if debug:
+                if "debug" not in result:
+                    result["debug"] = {}
+                result["debug"].update({
+                    "endpoint_processing_time": round(processing_time, 3),
+                    "file_size_bytes": file_size,
+                    "temp_file_used": True,
+                    "feature_extraction_enabled": include_features,
+                    "quick_mode": quick
+                })
             
             # Check for errors
             if "error" in result:
                 return jsonify(result), 422 if result["error"] == "parse_failed" else 500
+            
+            # Add success metadata
+            result["status"] = "success"
+            result["analysis_type"] = "single_apk"
             
             return jsonify(result)
             
@@ -535,11 +639,17 @@ def scan_single():
                 pass
                 
     except Exception as e:
-        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+        return jsonify({
+            "error": "internal_error", 
+            "detail": str(e),
+            "status": "failed",
+            "analysis_type": "single_apk",
+            "processing_time": round(time.time() - start_time, 3) if 'start_time' in locals() else 0
+        }), 500
 
 @app.route('/scan-batch', methods=['POST'])
 def scan_batch():
-    """Scan multiple APK files (enhanced for up to 15 APKs)"""
+    """Scan multiple APK files with comprehensive analysis and feature extraction (enhanced for up to 15 APKs)"""
     start_time = time.time()
     
     try:
@@ -558,22 +668,44 @@ def scan_batch():
         # Get query parameters
         quick = request.args.get('quick', 'false').lower() == 'true'
         debug = request.args.get('debug', 'false').lower() == 'true'
+        include_features = request.args.get('include_features', 'true').lower() == 'true'
+        include_summary = request.args.get('include_summary', 'true').lower() == 'true'
         
         # Validate all files first
         valid_files = []
+        invalid_files = []
         for file in files:
             if file.filename == '':
                 continue
             if not allowed_file(file.filename):
+                invalid_files.append({
+                    "filename": file.filename,
+                    "reason": "Invalid file type"
+                })
                 continue
             valid_files.append(file)
         
         if not valid_files:
-            return jsonify({"error": "no_valid_files", "detail": "No valid APK files found"}), 400
+            return jsonify({
+                "error": "no_valid_files", 
+                "detail": "No valid APK files found",
+                "invalid_files": invalid_files,
+                "valid_extensions": list(ALLOWED_EXTENSIONS)
+            }), 400
         
-        # Process files (with async for better performance)
+        # Process files with comprehensive analysis
         results = []
         temp_files = []
+        batch_stats = {
+            "total_size": 0,
+            "processed_count": 0,
+            "error_count": 0,
+            "fake_count": 0,
+            "legit_count": 0,
+            "high_risk_count": 0,
+            "medium_risk_count": 0,
+            "low_risk_count": 0
+        }
         
         try:
             for file in valid_files:
@@ -582,32 +714,210 @@ def scan_batch():
                 temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
                 temp_files.append(temp_file.name)
                 
+                # Get file size
+                file.seek(0, 2)
+                file_size = file.tell()
+                file.seek(0)
+                batch_stats["total_size"] += file_size
+                
                 file.save(temp_file.name)
                 temp_file.close()
                 
-                # Process file
-                result = process_single_apk(temp_file.name, quick=quick, debug=debug)
+                # Process file with comprehensive analysis
+                result = process_single_apk(temp_file.name, quick=quick, debug=True)
                 result["file"] = file.filename
-                results.append(result)
+                result["upload_size"] = file_size
+                result["upload_timestamp"] = time.time()
                 
-            # Add batch performance metrics
-            processing_time = time.time() - start_time
-            if debug:
-                for result in results:
-                    if "debug" not in result:
-                        result["debug"] = {}
-                    result["debug"]["batch_processing_time_seconds"] = round(processing_time, 3)
-                    result["debug"]["files_processed"] = len(valid_files)
+                # Track batch statistics
+                batch_stats["processed_count"] += 1
+                if "error" in result:
+                    batch_stats["error_count"] += 1
+                else:
+                    # Count predictions
+                    prediction = result.get("prediction", "unknown")
+                    if prediction == "fake":
+                        batch_stats["fake_count"] += 1
+                    elif prediction == "legit":
+                        batch_stats["legit_count"] += 1
+                    
+                    # Count risk levels
+                    risk_level = result.get("risk_level", "Unknown")
+                    if risk_level == "Red":
+                        batch_stats["high_risk_count"] += 1
+                    elif risk_level == "Amber":
+                        batch_stats["medium_risk_count"] += 1
+                    elif risk_level == "Green":
+                        batch_stats["low_risk_count"] += 1
+                
+                # Enhanced feature extraction for batch processing
+                if include_features and "feature_vector" in result and "error" not in result:
+                    feature_vector = result["feature_vector"]
+                    
+                    # Extract and categorize permissions
+                    permissions = {
+                        "granted": [],
+                        "sensitive": [],
+                        "dangerous": []
+                    }
+                    
+                    permission_categories = {
+                        "sensitive": ["READ_SMS", "SEND_SMS", "RECEIVE_SMS", "READ_CONTACTS", "SYSTEM_ALERT_WINDOW"],
+                        "dangerous": ["READ_SMS", "SEND_SMS", "RECEIVE_SMS", "SYSTEM_ALERT_WINDOW"]
+                    }
+                    
+                    for perm, value in feature_vector.items():
+                        if perm in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET'] and value == 1:
+                            permissions["granted"].append(perm)
+                            if perm in permission_categories["sensitive"]:
+                                permissions["sensitive"].append(perm)
+                            if perm in permission_categories["dangerous"]:
+                                permissions["dangerous"].append(perm)
+                    
+                    result["permissions_analysis"] = permissions
+                    
+                    # Extract suspicious APIs with risk levels
+                    suspicious_apis = []
+                    api_risk_mapping = {
+                        "api_getDeviceId": "medium",
+                        "api_sendTextMessage": "high", 
+                        "api_SmsManager": "high",
+                        "api_DexClassLoader": "high",
+                        "api_TYPE_SYSTEM_ALERT_WINDOW": "high",
+                        "api_addView": "medium",
+                        "api_HttpURLConnection": "low",
+                        "api_openConnection": "low"
+                    }
+                    
+                    for api, value in feature_vector.items():
+                        if api.startswith('api_') and value == 1:
+                            suspicious_apis.append({
+                                "api": api.replace('api_', ''),
+                                "risk_level": api_risk_mapping.get(api, "medium")
+                            })
+                    
+                    result["suspicious_apis_analysis"] = suspicious_apis
+                    
+                    # Security indicators summary
+                    security_indicators = {
+                        "has_sms_permissions": any(feature_vector.get(p, 0) == 1 for p in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS']),
+                        "has_contacts_access": feature_vector.get('READ_CONTACTS', 0) == 1,
+                        "has_system_overlay": feature_vector.get('SYSTEM_ALERT_WINDOW', 0) == 1,
+                        "has_internet_access": feature_vector.get('INTERNET', 0) == 1,
+                        "suspicious_api_count": feature_vector.get('count_suspicious', 0),
+                        "has_valid_certificate": feature_vector.get('cert_present', 0) == 1,
+                        "is_official_package": feature_vector.get('pkg_official', 0) == 1,
+                        "overall_risk_score": result.get("probability", 0)
+                    }
+                    
+                    result["security_indicators"] = security_indicators
+                
+                results.append(result)
             
-            return jsonify({
-                "results": results,
-                "summary": {
-                    "total_files": len(valid_files),
-                    "processing_time_seconds": round(processing_time, 3),
+            # Add comprehensive batch performance metrics
+            processing_time = time.time() - start_time
+            
+            # Batch-wide analysis summary
+            batch_summary = {
+                "overview": {
+                    "total_files_submitted": len(files),
+                    "valid_files": len(valid_files),
+                    "invalid_files": len(invalid_files),
+                    "successfully_processed": batch_stats["processed_count"],
+                    "processing_errors": batch_stats["error_count"]
+                },
+                "security_summary": {
+                    "malicious_detected": batch_stats["fake_count"],
+                    "legitimate_detected": batch_stats["legit_count"],
+                    "high_risk_apps": batch_stats["high_risk_count"],
+                    "medium_risk_apps": batch_stats["medium_risk_count"],
+                    "low_risk_apps": batch_stats["low_risk_count"],
+                    "detection_rate": round((batch_stats["fake_count"] / max(batch_stats["processed_count"] - batch_stats["error_count"], 1)) * 100, 2)
+                },
+                "performance": {
+                    "total_processing_time": round(processing_time, 3),
+                    "average_time_per_file": round(processing_time / len(valid_files), 3) if valid_files else 0,
                     "files_per_second": round(len(valid_files) / processing_time, 2) if processing_time > 0 else 0,
+                    "total_data_processed": batch_stats["total_size"],
+                    "processing_speed_mbps": round((batch_stats["total_size"] / (1024*1024)) / processing_time, 2) if processing_time > 0 else 0
+                },
+                "analysis_metadata": {
+                    "analysis_timestamp": time.time(),
+                    "api_version": "2.0",
+                    "model_version": "2.0",
+                    "quick_mode": quick,
+                    "debug_mode": debug,
+                    "feature_extraction": include_features,
                     "max_files_allowed": 15
                 }
-            })
+            }
+            
+            # Add batch-wide feature analysis if requested
+            if include_summary and results:
+                # Aggregate permission analysis
+                all_permissions = {}
+                all_apis = {}
+                total_risk_scores = []
+                
+                for result in results:
+                    if "error" not in result and "permissions_analysis" in result:
+                        for perm in result["permissions_analysis"]["granted"]:
+                            all_permissions[perm] = all_permissions.get(perm, 0) + 1
+                    
+                    if "error" not in result and "suspicious_apis_analysis" in result:
+                        for api_info in result["suspicious_apis_analysis"]:
+                            api_name = api_info["api"]
+                            all_apis[api_name] = all_apis.get(api_name, 0) + 1
+                    
+                    if "error" not in result and "probability" in result:
+                        total_risk_scores.append(result["probability"])
+                
+                batch_summary["feature_analysis"] = {
+                    "most_common_permissions": sorted(all_permissions.items(), key=lambda x: x[1], reverse=True)[:10],
+                    "most_common_suspicious_apis": sorted(all_apis.items(), key=lambda x: x[1], reverse=True)[:10],
+                    "average_risk_score": round(sum(total_risk_scores) / len(total_risk_scores), 3) if total_risk_scores else 0,
+                    "risk_score_distribution": {
+                        "high_risk_0.8+": len([s for s in total_risk_scores if s >= 0.8]),
+                        "medium_risk_0.5-0.8": len([s for s in total_risk_scores if 0.5 <= s < 0.8]),
+                        "low_risk_below_0.5": len([s for s in total_risk_scores if s < 0.5])
+                    }
+                }
+            
+            # Add debug information if requested
+            if debug:
+                for i, result in enumerate(results):
+                    if "debug" not in result:
+                        result["debug"] = {}
+                    result["debug"].update({
+                        "batch_position": i + 1,
+                        "batch_total": len(valid_files),
+                        "batch_processing_time": round(processing_time, 3),
+                        "individual_processing_order": i + 1
+                    })
+            
+            # Add status and metadata to all results
+            for result in results:
+                if "error" not in result:
+                    result["status"] = "success"
+                result["analysis_type"] = "batch_apk"
+            
+            response_data = {
+                "status": "success",
+                "analysis_type": "batch_apk",
+                "results": results,
+                "batch_summary": batch_summary,
+                "invalid_files": invalid_files if invalid_files else None
+            }
+            
+            # Legacy compatibility - keep original summary format
+            response_data["summary"] = {
+                "total_files": len(valid_files),
+                "processing_time_seconds": round(processing_time, 3),
+                "files_per_second": round(len(valid_files) / processing_time, 2) if processing_time > 0 else 0,
+                "max_files_allowed": 15
+            }
+            
+            return jsonify(response_data)
             
         finally:
             # Clean up temporary files
@@ -618,7 +928,14 @@ def scan_batch():
                     pass
         
     except Exception as e:
-        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+        return jsonify({
+            "error": "internal_error", 
+            "detail": str(e),
+            "status": "failed",
+            "analysis_type": "batch_apk",
+            "processing_time": round(time.time() - start_time, 3) if 'start_time' in locals() else 0,
+            "files_processed": len(results) if 'results' in locals() else 0
+        }), 500
 
 @app.route('/report', methods=['POST'])
 def generate_report():
