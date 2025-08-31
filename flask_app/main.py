@@ -1488,6 +1488,8 @@ def _generate_word_report(results: List[Dict]) -> str:
         from docx.oxml.ns import nsdecls
         from docx.oxml import parse_xml
         import re
+        import io
+        import base64
     except ImportError:
         # Fallback to HTML if python-docx is not available
         return _generate_html_batch_report(results)
