@@ -194,7 +194,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         model = get_cached_model()
         feature_order = get_cached_feature_order()
         saved_thr = get_cached_threshold()
-        
+
         # Get SHA256 for caching
         sha = get_sha256(file_path)
         
@@ -210,7 +210,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
                 ext = None
         else:
             ext = None
-        
+
         # Extract features if not cached
         if ext is None:
             try:
@@ -267,8 +267,13 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             pred = 0
         
         # Risk categorization with confidence
-        risk = "Red" if prob >= max(0.8, threshold) else ("Amber" if (prob >= threshold or pred == 1) else "Green")
-        
+        if prob >= max(0.8, threshold):
+            risk = "Red"
+        elif prob >= threshold or pred == 1:
+            risk = "Amber"
+        else:
+            risk = "Green"
+
         # Get top SHAP features (best effort)
         top_shap = []
         try:
@@ -295,14 +300,14 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             confidence = "Medium"
         else:
             confidence = "Low"
-        
+
         label_map = {0: "legit", 1: "fake"}
         
         # Add confidence to result
         result = {
             "prediction": label_map.get(int(pred), str(pred)),
             "probability": prob,
-            "risk": risk,
+            "risk_level": risk,  # Changed from "risk" to "risk_level" to match expected format
             "confidence": confidence,
             "top_shap": top_shap,
             "feature_vector": v["feature_map"],
@@ -483,7 +488,7 @@ def scan_batch():
                 result = process_single_apk(temp_file.name, quick=quick, debug=debug)
                 result["file"] = file.filename
                 results.append(result)
-            
+                
             # Add batch performance metrics
             processing_time = time.time() - start_time
             if debug:
@@ -510,7 +515,7 @@ def scan_batch():
                     os.unlink(temp_file)
                 except Exception:
                     pass
-                    
+        
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
@@ -635,7 +640,7 @@ def generate_batch_report():
                     os.unlink(temp_file)
                 except Exception:
                     pass
-                    
+                
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
