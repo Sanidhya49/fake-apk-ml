@@ -27,6 +27,16 @@ services:
       - key: PYTHONHASHSEED
         value: "42"
       
+      # Flask configuration
+      - key: FLASK_ENV
+        value: "production"
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: FLASK_HOST
+        value: "0.0.0.0"
+      - key: FLASK_PORT
+        value: "$PORT"
+      
       # Disable cache bypass for production (faster, consistent)
       - key: ML_DISABLE_CACHE_BYPASS
         value: "1"
@@ -34,5 +44,5 @@ services:
     healthCheckPath: /
     autoDeploy: true
     buildCommand: pip install -r requirements.prod.txt
-    startCommand: uvicorn ml.infer_service:app --host 0.0.0.0 --port $PORT --workers 2 --log-level warning --no-access-log
+    startCommand: python flask_app/main.py
 

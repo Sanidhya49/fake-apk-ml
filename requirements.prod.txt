@@ -31,3 +31,6 @@ werkzeug>=3.0.0
 # Production WSGI Servers
 gunicorn>=21.2.0
 waitress>=3.0.0
+
+# Document Generation
+python-docx>=1.1.0

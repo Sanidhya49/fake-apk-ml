@@ -32,6 +32,9 @@ werkzeug>=3.0.0
 # Production WSGI Server (for Flask)
 waitress>=3.0.0
 
+# Document Generation
+python-docx>=1.1.0
+
 # Streamlit (for UI)
 streamlit>=1.28.0
 

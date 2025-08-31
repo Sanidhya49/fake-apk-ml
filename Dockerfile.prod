@@ -22,6 +22,7 @@ RUN pip install --no-cache-dir -r requirements.prod.txt
 
 # Copy application code
 COPY ml/ ./ml/
+COPY flask_app/ ./flask_app/
 COPY models/ ./models/
 COPY artifacts/ ./artifacts/
 
@@ -38,4 +39,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 9000
 
 # Use environment variable for port (Render requirement)
-CMD ["sh", "-c", "uvicorn ml.infer_service:app --host 0.0.0.0 --port $PORT --workers 2 --log-level warning --no-access-log"]
+CMD ["sh", "-c", "python flask_app/main.py"]

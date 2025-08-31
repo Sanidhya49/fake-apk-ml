@@ -429,7 +429,7 @@ def scan_single():
 
 @app.route('/scan-batch', methods=['POST'])
 def scan_batch():
-    """Scan multiple APK files (optimized with async processing)"""
+    """Scan multiple APK files (enhanced for up to 15 APKs)"""
     start_time = time.time()
     
     try:
@@ -440,6 +440,10 @@ def scan_batch():
         files = request.files.getlist('files')
         if not files or len(files) == 0:
             return jsonify({"error": "no_files", "detail": "No files selected"}), 400
+        
+        # Limit to 15 files maximum
+        if len(files) > 15:
+            return jsonify({"error": "too_many_files", "detail": "Maximum 15 files allowed per batch"}), 400
         
         # Get query parameters
         quick = request.args.get('quick', 'false').lower() == 'true'
@@ -490,7 +494,8 @@ def scan_batch():
                 "summary": {
                     "total_files": len(valid_files),
                     "processing_time_seconds": round(processing_time, 3),
-                    "files_per_second": round(len(valid_files) / processing_time, 2) if processing_time > 0 else 0
+                    "files_per_second": round(len(valid_files) / processing_time, 2) if processing_time > 0 else 0,
+                    "max_files_allowed": 15
                 }
             })
             
@@ -556,6 +561,77 @@ def generate_report():
             except Exception:
                 pass
                 
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/report-batch', methods=['POST'])
+def generate_batch_report():
+    """Generate comprehensive Word document report for multiple APKs with AI explanations"""
+    try:
+        # Check if files are in request
+        if 'files' not in request.files:
+            return jsonify({"error": "no_files", "detail": "No files provided"}), 400
+        
+        files = request.files.getlist('files')
+        if not files or len(files) == 0:
+            return jsonify({"error": "no_files", "detail": "No files selected"}), 400
+        
+        # Limit to 15 files maximum
+        if len(files) > 15:
+            return jsonify({"error": "too_many_files", "detail": "Maximum 15 files allowed per batch"}), 400
+        
+        # Validate all files first
+        valid_files = []
+        for file in files:
+            if file.filename == '':
+                continue
+            if not allowed_file(file.filename):
+                continue
+            valid_files.append(file)
+        
+        if not valid_files:
+            return jsonify({"error": "no_valid_files", "detail": "No valid APK files found"}), 400
+        
+        # Process all files
+        results = []
+        temp_files = []
+        
+        try:
+            for file in valid_files:
+                # Save uploaded file temporarily
+                filename = secure_filename(file.filename)
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
+                temp_files.append(temp_file.name)
+                
+                file.save(temp_file.name)
+                temp_file.close()
+                
+                # Process file with full analysis
+                result = process_single_apk(temp_file.name, quick=False, debug=True)
+                result["file"] = file.filename
+                results.append(result)
+            
+            # Generate comprehensive Word document report
+            word_report = _generate_word_report(results)
+            
+            return jsonify({
+                "results": results,
+                "word_report": word_report,
+                "summary": {
+                    "total_files": len(valid_files),
+                    "report_generated": True,
+                    "max_files_allowed": 15
+                }
+            })
+            
+        finally:
+            # Clean up temporary files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except Exception:
+                    pass
+                    
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
@@ -1006,6 +1082,256 @@ def _render_html_report(result: Dict, filename: str) -> str:
     """
     return html
 
+def _generate_ai_explanation(result: Dict) -> str:
+    """Generate AI explanation for the prediction"""
+    prediction = result.get('prediction', 'unknown')
+    probability = result.get('probability', 0)
+    risk = result.get('risk', 'Unknown')
+    feature_vector = result.get('feature_vector', {})
+    
+    # Analyze key features
+    suspicious_count = feature_vector.get('count_suspicious', 0)
+    has_sms_permissions = any(feature_vector.get(perm, 0) == 1 for perm in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS'])
+    has_contacts_permission = feature_vector.get('READ_CONTACTS', 0) == 1
+    has_system_alert = feature_vector.get('SYSTEM_ALERT_WINDOW', 0) == 1
+    is_official = feature_vector.get('pkg_official', 0) == 1
+    cert_present = feature_vector.get('cert_present', 0) == 1
+    
+    # Generate explanation based on prediction
+    if prediction == 'fake':
+        reasons = []
+        if probability >= 0.8:
+            reasons.append("High probability score indicates strong evidence of malicious behavior")
+        if suspicious_count > 3:
+            reasons.append(f"Multiple suspicious APIs detected ({suspicious_count} total)")
+        if has_sms_permissions:
+            reasons.append("SMS permissions detected - potential for SMS-based attacks")
+        if has_contacts_permission:
+            reasons.append("Contacts access permission - could be used for data harvesting")
+        if has_system_alert:
+            reasons.append("System alert window permission - potential for overlay attacks")
+        if not cert_present:
+            reasons.append("No valid certificate found - suspicious for legitimate apps")
+        
+        explanation = f"This APK was classified as FAKE with {probability:.1%} confidence. "
+        if reasons:
+            explanation += "Key factors contributing to this classification: " + "; ".join(reasons) + "."
+        else:
+            explanation += "The model detected patterns consistent with malicious applications."
+    
+    else:  # legit
+        reasons = []
+        if probability <= 0.2:
+            reasons.append("Low probability score indicates legitimate behavior patterns")
+        if is_official:
+            reasons.append("Package identified as official/trusted source")
+        if cert_present:
+            reasons.append("Valid certificate present - indicates proper app signing")
+        if suspicious_count <= 1:
+            reasons.append("Minimal suspicious API usage detected")
+        if not has_sms_permissions and not has_contacts_permission:
+            reasons.append("No sensitive permissions requested")
+        
+        explanation = f"This APK was classified as LEGITIMATE with {probability:.1%} confidence. "
+        if reasons:
+            explanation += "Key factors supporting this classification: " + "; ".join(reasons) + "."
+        else:
+            explanation += "The model found no significant indicators of malicious behavior."
+    
+    # Add risk level explanation
+    if risk == 'Red':
+        explanation += " Risk Level RED indicates high confidence in malicious behavior."
+    elif risk == 'Amber':
+        explanation += " Risk Level AMBER indicates moderate suspicion requiring further investigation."
+    else:  # Green
+        explanation += " Risk Level GREEN indicates low risk of malicious behavior."
+    
+    return explanation
+
+def _generate_word_report(results: List[Dict]) -> str:
+    """Generates a comprehensive Word document report for multiple APKs with AI explanations"""
+    try:
+        from docx import Document
+        from docx.shared import Inches
+        from docx.enum.text import WD_ALIGN_PARAGRAPH
+        from docx.enum.table import WD_ALIGN_VERTICAL
+        from docx.enum.text import WD_BREAK
+    except ImportError:
+        # Fallback to HTML if python-docx is not available
+        return _generate_html_batch_report(results)
+    
+    doc = Document()
+    
+    # Add a cover page
+    doc.add_heading('APK Security Analysis Report', 0)
+    doc.add_paragraph('This report provides a comprehensive analysis of the security posture of the APKs scanned.')
+    doc.add_paragraph(f'Generated on: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}')
+    doc.add_page_break()
+    
+    # Add Executive Summary
+    doc.add_heading('Executive Summary', level=1)
+    total_files = len(results)
+    fake_count = sum(1 for r in results if r.get('prediction') == 'fake')
+    legit_count = sum(1 for r in results if r.get('prediction') == 'legit')
+    
+    doc.add_paragraph(f'Total APKs analyzed: {total_files}')
+    doc.add_paragraph(f'Legitimate APKs: {legit_count}')
+    doc.add_paragraph(f'Malicious APKs: {fake_count}')
+    doc.add_paragraph(f'Detection rate: {(fake_count/total_files)*100:.1f}% of files flagged as suspicious')
+    doc.add_page_break()
+    
+    # Add Summary Table
+    doc.add_heading('Summary Table', level=1)
+    table = doc.add_table(rows=len(results) + 1, cols=5)
+    table.style = 'Table Grid'
+    
+    # Add headers
+    headers = ['APK File', 'Prediction', 'Risk Level', 'Confidence', 'AI Explanation']
+    for i, header in enumerate(headers):
+        table.cell(0, i).text = header
+    
+    # Add data rows
+    for i, result in enumerate(results):
+        file_name = result.get('file', 'N/A')
+        prediction = result.get('prediction', 'Unknown').title()
+        risk = result.get('risk', 'Unknown')
+        confidence = f'{result.get("probability", 0):.1%}'
+        ai_explanation = _generate_ai_explanation(result)
+        
+        table.cell(i + 1, 0).text = file_name
+        table.cell(i + 1, 1).text = prediction
+        table.cell(i + 1, 2).text = risk
+        table.cell(i + 1, 3).text = confidence
+        table.cell(i + 1, 4).text = ai_explanation[:100] + "..." if len(ai_explanation) > 100 else ai_explanation
+    
+    doc.add_page_break()
+    
+    # Add Detailed Analysis
+    doc.add_heading('Detailed Analysis', level=1)
+    for i, result in enumerate(results):
+        doc.add_heading(f'Analysis for {result.get("file", "N/A")}', level=2)
+        
+        # Basic info
+        doc.add_paragraph(f'**Prediction:** {result.get("prediction", "Unknown").title()}')
+        doc.add_paragraph(f'**Risk Level:** {result.get("risk", "Unknown")}')
+        doc.add_paragraph(f'**Confidence:** {result.get("probability", 0):.1%}')
+        
+        # AI Explanation
+        doc.add_heading('AI Agent Explanation', level=3)
+        ai_explanation = _generate_ai_explanation(result)
+        doc.add_paragraph(ai_explanation)
+        
+        # Feature Analysis
+        doc.add_heading('Feature Analysis', level=3)
+        feature_vector = result.get('feature_vector', {})
+        
+        # Permissions
+        permissions = [k for k, v in feature_vector.items() if k in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET'] and v == 1]
+        if permissions:
+            doc.add_paragraph('**Granted Permissions:**')
+            for perm in permissions:
+                doc.add_paragraph(f'• {perm.replace("_", " ").title()}')
+        
+        # Suspicious APIs
+        suspicious_apis = [k for k, v in feature_vector.items() if k.startswith('api_') and v == 1]
+        if suspicious_apis:
+            doc.add_paragraph('**Suspicious APIs Detected:**')
+            for api in suspicious_apis:
+                api_name = api.replace('api_', '').replace('_', ' ').title()
+                doc.add_paragraph(f'• {api_name}')
+        
+        # SHAP Analysis
+        if result.get('top_shap'):
+            doc.add_heading('Top Contributing Features (SHAP Analysis)', level=3)
+            for item in result.get('top_shap', []):
+                feature_name = item.get('feature', 'Unknown').replace('_', ' ').title()
+                value = item.get('value', 0)
+                doc.add_paragraph(f'• {feature_name}: {value:+.4f}')
+        
+        doc.add_page_break()
+    
+    # Add Recommendations
+    doc.add_heading('Security Recommendations', level=1)
+    doc.add_paragraph('Based on the analysis, consider the following recommendations:')
+    doc.add_paragraph('• Review all RED risk APKs immediately')
+    doc.add_paragraph('• Investigate AMBER risk APKs thoroughly')
+    doc.add_paragraph('• Implement additional security measures for suspicious apps')
+    doc.add_paragraph('• Regular scanning of new APKs before deployment')
+    
+    # Save the document
+    docx_path = os.path.join("artifacts", "batch_report.docx")
+    os.makedirs(os.path.dirname(docx_path), exist_ok=True)
+    doc.save(docx_path)
+    return docx_path
+
+def _generate_html_batch_report(results: List[Dict]) -> str:
+    """Fallback HTML report generation if python-docx is not available"""
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>APK Security Analysis Report</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; }
+            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .summary { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px; }
+            .apk-analysis { border: 1px solid #ddd; margin: 20px 0; padding: 20px; border-radius: 5px; }
+            .fake { border-left: 5px solid #ff4444; }
+            .legit { border-left: 5px solid #44ff44; }
+            .red { color: #ff4444; font-weight: bold; }
+            .amber { color: #ffaa00; font-weight: bold; }
+            .green { color: #44ff44; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>APK Security Analysis Report</h1>
+            <p>Generated on: """ + __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC') + """</p>
+        </div>
+    """
+    
+    # Summary
+    total_files = len(results)
+    fake_count = sum(1 for r in results if r.get('prediction') == 'fake')
+    legit_count = sum(1 for r in results if r.get('prediction') == 'legit')
+    
+    html += f"""
+        <div class="summary">
+            <h2>Executive Summary</h2>
+            <p><strong>Total APKs analyzed:</strong> {total_files}</p>
+            <p><strong>Legitimate APKs:</strong> {legit_count}</p>
+            <p><strong>Malicious APKs:</strong> {fake_count}</p>
+            <p><strong>Detection rate:</strong> {(fake_count/total_files)*100:.1f}% of files flagged as suspicious</p>
+        </div>
+    """
+    
+    # Individual APK Analysis
+    for result in results:
+        prediction = result.get('prediction', 'unknown')
+        risk = result.get('risk', 'Unknown')
+        probability = result.get('probability', 0)
+        ai_explanation = _generate_ai_explanation(result)
+        
+        risk_class = risk.lower()
+        pred_class = prediction
+        
+        html += f"""
+        <div class="apk-analysis {pred_class}">
+            <h3>Analysis for {result.get('file', 'N/A')}</h3>
+            <p><strong>Prediction:</strong> {prediction.title()}</p>
+            <p><strong>Risk Level:</strong> <span class="{risk_class}">{risk}</span></p>
+            <p><strong>Confidence:</strong> {probability:.1%}</p>
+            <p><strong>AI Explanation:</strong> {ai_explanation}</p>
+        </div>
+        """
+    
+    html += """
+    </body>
+    </html>
+    """
+    
+    return html
+
 @app.route('/test', methods=['GET'])
 def test_endpoint():
     return jsonify({"message": "Test endpoint is working!"})
@@ -1035,8 +1361,9 @@ if __name__ == '__main__':
         print("Available endpoints:")
         print("  GET  /           - Health check")
         print("  POST /scan       - Scan single APK")
-        print("  POST /scan-batch - Scan multiple APKs")
-        print("  POST /report     - Generate detailed report")
+        print("  POST /scan-batch - Scan multiple APKs (up to 15)")
+        print("  POST /report     - Generate detailed HTML report")
+        print("  POST /report-batch - Generate Word document report (up to 15 APKs)")
         
         # Use production WSGI server
         try:
