@@ -1914,43 +1914,81 @@ def _generate_word_report(results: List[Dict]) -> str:
     core_properties.creator = "Fake APK Detection System v2.0"
     core_properties.category = "Security Analysis"
     
-    # Create a visually appealing cover page
+    # Create a professional cover page similar to ATLAS report format
     section = doc.sections[0]
     section.left_margin = Cm(2.5)
     section.right_margin = Cm(2.5)
     section.top_margin = Cm(2.5)
     section.bottom_margin = Cm(2.5)
     
-    # Add a stylish cover page
-    title = doc.add_heading('APK Security Analysis Report', 0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Add a subtitle with company name
-    subtitle = doc.add_paragraph('Comprehensive Security Assessment')
-    subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    subtitle.runs[0].font.size = Pt(18)
-    subtitle.runs[0].font.color.rgb = RGBColor(89, 89, 89)
-    
-    # Add empty space
-    for _ in range(5):
+    # Add spacing at the top
+    for _ in range(4):
         doc.add_paragraph('')
     
-    # Add visual separator
-    separator = doc.add_paragraph('_' * 50)
-    separator.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    separator.runs[0].font.color.rgb = RGBColor(89, 89, 89)
+    # Add FA-DET-2025 identifier at top right
+    fa_det_para = doc.add_paragraph('FA-DET-2025')
+    fa_det_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    fa_det_para.runs[0].font.size = Pt(12)
+    fa_det_para.runs[0].font.color.rgb = RGBColor(89, 89, 89)
+    fa_det_para.runs[0].bold = True
     
-    # Add date and metadata
+    # Add more spacing
+    for _ in range(8):
+        doc.add_paragraph('')
+    
+    # Get the main APK name for the title (use first result or generic title)
+    main_apk_name = "APK Security Analysis"
+    if results and len(results) > 0:
+        first_result = results[0]
+        app_name = first_result.get('app_label', '')
+        file_name = first_result.get('file', '')
+        
+        if app_name:
+            main_apk_name = app_name
+        elif file_name:
+            # Extract name from filename without extension
+            main_apk_name = file_name.split('.')[0] if '.' in file_name else file_name
+    
+    # Add main application title
+    app_title = doc.add_heading(main_apk_name, level=1)
+    app_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    app_title.runs[0].font.size = Pt(32)
+    app_title.runs[0].font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
+    app_title.runs[0].bold = True
+    
+    # Add spacing
+    for _ in range(2):
+        doc.add_paragraph('')
+    
+    # Add main report title
+    main_title = doc.add_heading('APK Security Analysis Report', level=1)
+    main_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    main_title.runs[0].font.size = Pt(40)
+    main_title.runs[0].font.color.rgb = RGBColor(0, 51, 102)  # Dark blue
+    main_title.runs[0].bold = True
+    
+    # Add large spacing before footer
+    for _ in range(15):
+        doc.add_paragraph('')
+    
+    # Add copyright notice at bottom center
+    copyright_para = doc.add_paragraph('© Copyright 2025 SecureMobile Analytics')
+    copyright_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    copyright_para.runs[0].font.size = Pt(12)
+    copyright_para.runs[0].font.color.rgb = RGBColor(89, 89, 89)
+    
+    # Add generation date
     date_para = doc.add_paragraph(f'Generated on: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}')
     date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    date_para.runs[0].font.size = Pt(12)
-    date_para.runs[0].font.color.rgb = RGBColor(89, 89, 89)
+    date_para.runs[0].font.size = Pt(10)
+    date_para.runs[0].font.color.rgb = RGBColor(128, 128, 128)
     
-    # Add a document watermark/logo
-    footer_text = doc.add_paragraph('CONFIDENTIAL - FOR INTERNAL USE ONLY')
-    footer_text.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    footer_text.runs[0].font.size = Pt(10)
-    footer_text.runs[0].font.color.rgb = RGBColor(128, 128, 128)
+    # Add confidentiality notice
+    conf_para = doc.add_paragraph('CONFIDENTIAL - FOR INTERNAL USE ONLY')
+    conf_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    conf_para.runs[0].font.size = Pt(10)
+    conf_para.runs[0].font.color.rgb = RGBColor(128, 128, 128)
+    conf_para.runs[0].bold = True
     
     doc.add_page_break()
     
@@ -2849,10 +2887,56 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
             body { 
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
                 margin: 0; 
-                padding: 20px; 
+                padding: 0; 
                 background: #f8fafc;
                 color: #1f2937;
                 line-height: 1.6;
+            }
+            .cover-page {
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                align-items: center;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 40px;
+                text-align: center;
+                page-break-after: always;
+            }
+            .fa-det-id {
+                align-self: flex-end;
+                font-size: 14px;
+                font-weight: bold;
+                opacity: 0.9;
+            }
+            .cover-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            .app-name {
+                font-size: 3.5em;
+                font-weight: 800;
+                margin-bottom: 40px;
+                text-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            }
+            .main-title {
+                font-size: 4em;
+                font-weight: 800;
+                margin-bottom: 20px;
+                text-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                line-height: 1.1;
+            }
+            .cover-footer {
+                opacity: 0.8;
+                font-size: 14px;
+            }
+            .copyright {
+                font-weight: bold;
+                margin-bottom: 10px;
             }
             .container {
                 max-width: 1200px;
@@ -2954,15 +3038,39 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
                 background: #f3f4f6;
                 border-radius: 4px;
             }
+            @media print {
+                .cover-page {
+                    page-break-after: always;
+                }
+            }
             @media (max-width: 768px) {
                 body { padding: 10px; }
                 .content { padding: 20px; }
                 .analysis-grid { grid-template-columns: 1fr; }
                 .feature-list { columns: 1; }
+                .app-name { font-size: 2.5em; }
+                .main-title { font-size: 2.8em; }
             }
         </style>
     </head>
     <body>
+        <!-- Professional Cover Page -->
+        <div class="cover-page">
+            <div class="fa-det-id">FA-DET-2025</div>
+            
+            <div class="cover-content">
+                """ + (f'<h1 class="app-name">{results[0].get("app_label", results[0].get("file", "APK Analysis").split(".")[0])}</h1>' if results and len(results) > 0 else '') + """
+                <h1 class="main-title">APK Security Analysis Report</h1>
+            </div>
+            
+            <div class="cover-footer">
+                <div class="copyright">© Copyright 2025 SecureMobile Analytics</div>
+                <div>Generated on: """ + __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC') + """</div>
+                <div>CONFIDENTIAL - FOR INTERNAL USE ONLY</div>
+            </div>
+        </div>
+        
+        <!-- Report Content -->
         <div class="container">
             <div class="header">
                 <h1>🛡️ APK Security Analysis Report</h1>
