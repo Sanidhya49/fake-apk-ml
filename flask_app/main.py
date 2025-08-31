@@ -1342,7 +1342,15 @@ if __name__ == '__main__':
     
     # Get configuration from environment
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
-    port = int(os.environ.get('FLASK_PORT', 9000))
+    
+    # Handle PORT environment variable (Render.com uses $PORT)
+    port_str = os.environ.get('PORT') or os.environ.get('FLASK_PORT', '9000')
+    try:
+        port = int(port_str)
+    except ValueError:
+        print(f"Warning: Invalid port '{port_str}', using default 9000")
+        port = 9000
+    
     debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     # Performance optimizations for production

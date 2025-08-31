@@ -34,8 +34,6 @@ services:
         value: "false"
       - key: FLASK_HOST
         value: "0.0.0.0"
-      - key: FLASK_PORT
-        value: "$PORT"
       
       # Disable cache bypass for production (faster, consistent)
       - key: ML_DISABLE_CACHE_BYPASS
