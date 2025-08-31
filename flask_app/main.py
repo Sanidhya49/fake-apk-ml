@@ -188,6 +188,8 @@ def _vectorize_from_extract(extract_dict: Dict, feature_order: List[str]) -> Dic
 def process_single_apk(file_path: str, quick: bool = False, debug: bool = False) -> Dict:
     """Process a single APK file (optimized version)"""
     try:
+        start_time = time.time()  # Add start time for debug
+        
         # Get cached instances
         model = get_cached_model()
         feature_order = get_cached_feature_order()
