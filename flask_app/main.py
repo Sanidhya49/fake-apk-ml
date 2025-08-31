@@ -67,6 +67,41 @@ _feature_order_cache = None
 _saved_threshold_cache = None
 _bank_whitelist_cache = None
 
+import logging
+
+# Configure logging to show everything
+logging.basicConfig(level=logging.DEBUG)
+
+@app.before_request
+def log_request():
+    app.logger.info(f"[REQ] {request.remote_addr} {request.method} {request.full_path}")
+    app.logger.info(f"Headers: {dict(request.headers)}")
+    if request.content_length:
+        app.logger.info(f"Body size: {request.content_length} bytes")
+    if request.data and request.content_length < 5000:  # prevent logging huge APK files
+        try:
+            app.logger.info(f"Body: {request.data.decode('utf-8', errors='ignore')}")
+        except Exception:
+            app.logger.warning("[Body could not be decoded]")
+
+@app.after_request
+def log_response(response):
+    app.logger.info(
+        f"[RESP] {request.remote_addr} {request.method} {request.full_path} "
+        f"-> {response.status} ({len(response.data)} bytes)"
+    )
+    try:
+        if len(response.data) < 5000:  # don’t spam with huge responses
+            app.logger.debug(f"Response body: {response.data.decode('utf-8', errors='ignore')}")
+    except Exception:
+        app.logger.warning("[Response body could not be decoded]")
+    return response
+
+@app.teardown_request
+def log_teardown(error=None):
+    if error:
+        app.logger.error(f"[ERROR] {request.remote_addr} {request.method} {request.full_path} -> {error}", exc_info=True)
+
 def get_cached_model():
     """Get cached model instance"""
     global _model_cache
@@ -575,7 +610,13 @@ def generate_report():
 
 @app.route('/report-batch', methods=['POST'])
 def generate_batch_report():
-    """Generate comprehensive Word document report for multiple APKs with AI explanations"""
+    """Generate comprehensive Word document report for multiple APKs with AI explanations
+    
+    Returns JSON with:
+    - results: Array of analysis results for each APK
+    - word_report: Base64-encoded Word document content for download
+    - summary: Metadata about the batch processing
+    """
     try:
         # Check if files are in request
         if 'files' not in request.files:
@@ -1267,11 +1308,20 @@ def _generate_word_report(results: List[Dict]) -> str:
     doc.add_paragraph('• Implement additional security measures for suspicious apps')
     doc.add_paragraph('• Regular scanning of new APKs before deployment')
     
-    # Save the document
-    docx_path = os.path.join("artifacts", "batch_report.docx")
-    os.makedirs(os.path.dirname(docx_path), exist_ok=True)
-    doc.save(docx_path)
-    return docx_path
+    # Save the document to a BytesIO object and return as base64
+    import io
+    import base64
+    
+    # Save to BytesIO instead of file
+    doc_buffer = io.BytesIO()
+    doc.save(doc_buffer)
+    doc_buffer.seek(0)
+    
+    # Convert to base64
+    doc_base64 = base64.b64encode(doc_buffer.read()).decode('utf-8')
+    doc_buffer.close()
+    
+    return doc_base64
 
 def _generate_html_batch_report(results: List[Dict]) -> str:
     """Fallback HTML report generation if python-docx is not available"""
@@ -1339,11 +1389,16 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
     </html>
     """
     
-    return html
+    # Convert HTML to base64 for consistent handling with Word documents
+    import base64
+    html_base64 = base64.b64encode(html.encode('utf-8')).decode('utf-8')
+    return html_base64
 
 @app.route('/test', methods=['GET'])
 def test_endpoint():
     return jsonify({"message": "Test endpoint is working!"})
+
+
 
 if __name__ == '__main__':
     # Make sure required directories exist

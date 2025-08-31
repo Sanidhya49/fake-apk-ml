@@ -467,7 +467,7 @@ export default {
     "total_files": 5,
     "report_generated": true
   },
-  "word_report": "artifacts/batch_report.docx"
+  "word_report": "base64-encoded-docx-content-here"
 }
 ```
 
