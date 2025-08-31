@@ -1371,111 +1371,261 @@ def _generate_word_report(results: List[Dict]) -> str:
     """Generates a comprehensive Word document report for multiple APKs with AI explanations"""
     try:
         from docx import Document
-        from docx.shared import Inches
+        from docx.shared import Inches, RGBColor
         from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.enum.table import WD_ALIGN_VERTICAL
         from docx.enum.text import WD_BREAK
+        from docx.oxml.shared import OxmlElement, qn
+        import re
     except ImportError:
         # Fallback to HTML if python-docx is not available
         return _generate_html_batch_report(results)
     
+    def format_markdown_to_docx(paragraph_text, paragraph):
+        """Convert markdown formatting to Word document formatting"""
+        # Handle bold text (**text** or __text__)
+        bold_pattern = r'\*\*(.*?)\*\*|__(.*?)__'
+        parts = re.split(bold_pattern, paragraph_text)
+        
+        current_run = None
+        for i, part in enumerate(parts):
+            if part is None:
+                continue
+            
+            # Check if this part should be bold (every 2nd and 3rd captured group)
+            is_bold = (i % 3 == 1 or i % 3 == 2) and part
+            
+            if part:
+                if current_run is None:
+                    current_run = paragraph.add_run(part)
+                else:
+                    current_run = paragraph.add_run(part)
+                
+                if is_bold:
+                    current_run.bold = True
+    
+    def add_formatted_paragraph(doc, text):
+        """Add a paragraph with proper markdown formatting conversion"""
+        # Split text into lines and handle different formatting
+        lines = text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                doc.add_paragraph('')  # Empty line
+                continue
+            
+            # Handle headers (# ## ###)
+            if line.startswith('###'):
+                doc.add_heading(line[3:].strip(), level=3)
+            elif line.startswith('##'):
+                doc.add_heading(line[2:].strip(), level=2)
+            elif line.startswith('#'):
+                doc.add_heading(line[1:].strip(), level=1)
+            # Handle bullet points
+            elif line.startswith('- ') or line.startswith('* '):
+                p = doc.add_paragraph(style='List Bullet')
+                format_markdown_to_docx(line[2:].strip(), p)
+            # Handle numbered lists
+            elif re.match(r'^\d+\.', line):
+                p = doc.add_paragraph(style='List Number')
+                format_markdown_to_docx(re.sub(r'^\d+\.\s*', '', line), p)
+            # Regular paragraph
+            else:
+                p = doc.add_paragraph()
+                format_markdown_to_docx(line, p)
+    
     doc = Document()
     
-    # Add a cover page
-    doc.add_heading('APK Security Analysis Report', 0)
-    doc.add_paragraph('This report provides a comprehensive analysis of the security posture of the APKs scanned.')
-    doc.add_paragraph(f'Generated on: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}')
+    # Add a cover page with better formatting
+    title = doc.add_heading('APK Security Analysis Report', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    cover_para = doc.add_paragraph('This report provides a comprehensive analysis of the security posture of the APKs scanned.')
+    cover_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    date_para = doc.add_paragraph(f'Generated on: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}')
+    date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
     doc.add_page_break()
     
-    # Add Executive Summary
+    # Add Executive Summary with better formatting
     doc.add_heading('Executive Summary', level=1)
     total_files = len(results)
     fake_count = sum(1 for r in results if r.get('prediction') == 'fake')
     legit_count = sum(1 for r in results if r.get('prediction') == 'legit')
     
-    doc.add_paragraph(f'Total APKs analyzed: {total_files}')
-    doc.add_paragraph(f'Legitimate APKs: {legit_count}')
-    doc.add_paragraph(f'Malicious APKs: {fake_count}')
-    doc.add_paragraph(f'Detection rate: {(fake_count/total_files)*100:.1f}% of files flagged as suspicious')
+    # Create summary with proper formatting
+    summary_text = f"""
+**Analysis Overview:**
+- Total APKs analyzed: {total_files}
+- Legitimate APKs: {legit_count}
+- Malicious APKs: {fake_count}
+- Detection rate: {(fake_count/total_files)*100:.1f}% of files flagged as suspicious
+
+**Risk Distribution:**"""
+    
+    # Count risk levels
+    red_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Red')
+    amber_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Amber')
+    green_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Green')
+    
+    summary_text += f"""
+- Red Risk (High): {red_count} APKs
+- Amber Risk (Medium): {amber_count} APKs  
+- Green Risk (Low): {green_count} APKs
+"""
+    
+    add_formatted_paragraph(doc, summary_text)
     doc.add_page_break()
     
-    # Add Summary Table
+    # Add Summary Table with better formatting
     doc.add_heading('Summary Table', level=1)
     table = doc.add_table(rows=len(results) + 1, cols=5)
     table.style = 'Table Grid'
     
-    # Add headers
-    headers = ['APK File', 'Prediction', 'Risk Level', 'Confidence', 'AI Explanation']
+    # Add headers with formatting
+    headers = ['APK File', 'Prediction', 'Risk Level', 'Confidence', 'Summary']
     for i, header in enumerate(headers):
-        table.cell(0, i).text = header
+        cell = table.cell(0, i)
+        cell.text = header
+        # Make header bold
+        for paragraph in cell.paragraphs:
+            for run in paragraph.runs:
+                run.bold = True
     
-    # Add data rows
+    # Add data rows with proper formatting
     for i, result in enumerate(results):
         file_name = result.get('file', 'N/A')
         prediction = result.get('prediction', 'Unknown').title()
-        risk = result.get('risk', 'Unknown')
+        risk = result.get('risk_level', result.get('risk', 'Unknown'))
         confidence = f'{result.get("probability", 0):.1%}'
-        ai_explanation = _generate_ai_explanation(result)
+        
+        # Generate AI explanation and truncate for table
+        ai_explanation = result.get('ai_explanation', '') or _generate_ai_explanation(result)
+        # Clean up the explanation and truncate
+        clean_explanation = re.sub(r'\*\*(.*?)\*\*', r'\1', ai_explanation)  # Remove bold markdown
+        clean_explanation = re.sub(r'[#*-]', '', clean_explanation)  # Remove other markdown
+        summary = clean_explanation[:150] + "..." if len(clean_explanation) > 150 else clean_explanation
         
         table.cell(i + 1, 0).text = file_name
         table.cell(i + 1, 1).text = prediction
         table.cell(i + 1, 2).text = risk
         table.cell(i + 1, 3).text = confidence
-        table.cell(i + 1, 4).text = ai_explanation[:100] + "..." if len(ai_explanation) > 100 else ai_explanation
+        table.cell(i + 1, 4).text = summary.strip()
     
     doc.add_page_break()
     
-    # Add Detailed Analysis
+    # Add Detailed Analysis with improved formatting
     doc.add_heading('Detailed Analysis', level=1)
     for i, result in enumerate(results):
-        doc.add_heading(f'Analysis for {result.get("file", "N/A")}', level=2)
+        file_name = result.get("file", "N/A")
+        doc.add_heading(f'Analysis for {file_name}', level=2)
         
-        # Basic info
-        doc.add_paragraph(f'**Prediction:** {result.get("prediction", "Unknown").title()}')
-        doc.add_paragraph(f'**Risk Level:** {result.get("risk", "Unknown")}')
-        doc.add_paragraph(f'**Confidence:** {result.get("probability", 0):.1%}')
+        # Basic info with better formatting
+        basic_info = f"""
+**Prediction:** {result.get("prediction", "Unknown").title()}
+**Risk Level:** {result.get("risk_level", result.get("risk", "Unknown"))}
+**Confidence Score:** {result.get("probability", 0):.1%}
+**Confidence Level:** {result.get("confidence", "Unknown")}
+        """
+        add_formatted_paragraph(doc, basic_info.strip())
         
-        # AI Explanation
-        doc.add_heading('AI Agent Explanation', level=3)
-        ai_explanation = _generate_ai_explanation(result)
-        doc.add_paragraph(ai_explanation)
+        # AI Explanation with proper formatting
+        doc.add_heading('AI Security Analysis', level=3)
+        ai_explanation = result.get('ai_explanation', '') or _generate_ai_explanation(result)
         
-        # Feature Analysis
-        doc.add_heading('Feature Analysis', level=3)
+        # Process and format the AI explanation
+        if ai_explanation:
+            add_formatted_paragraph(doc, ai_explanation)
+        else:
+            doc.add_paragraph("AI explanation not available for this APK.")
+        
+        # Feature Analysis with better organization
+        doc.add_heading('Technical Analysis', level=3)
         feature_vector = result.get('feature_vector', {})
         
-        # Permissions
-        permissions = [k for k, v in feature_vector.items() if k in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET'] and v == 1]
-        if permissions:
-            doc.add_paragraph('**Granted Permissions:**')
-            for perm in permissions:
-                doc.add_paragraph(f'• {perm.replace("_", " ").title()}')
+        # Permissions with improved formatting
+        permissions = [k for k, v in feature_vector.items() 
+                      if k in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET', 'QUERY_ALL_PACKAGES'] 
+                      and v == 1]
         
-        # Suspicious APIs
+        if permissions:
+            perm_text = "**Granted Permissions:**\n"
+            for perm in permissions:
+                perm_display = perm.replace("_", " ").title()
+                perm_text += f"- {perm_display}\n"
+            add_formatted_paragraph(doc, perm_text.strip())
+        
+        # Suspicious APIs with better formatting
         suspicious_apis = [k for k, v in feature_vector.items() if k.startswith('api_') and v == 1]
         if suspicious_apis:
-            doc.add_paragraph('**Suspicious APIs Detected:**')
+            api_text = "**Suspicious APIs Detected:**\n"
             for api in suspicious_apis:
                 api_name = api.replace('api_', '').replace('_', ' ').title()
-                doc.add_paragraph(f'• {api_name}')
+                api_text += f"- {api_name}\n"
+            add_formatted_paragraph(doc, api_text.strip())
         
-        # SHAP Analysis
+        # SHAP Analysis with enhanced formatting
         if result.get('top_shap'):
-            doc.add_heading('Top Contributing Features (SHAP Analysis)', level=3)
+            doc.add_heading('Top Contributing Features (SHAP Analysis)', level=4)
+            shap_text = "**Feature Impact Analysis:**\n"
             for item in result.get('top_shap', []):
                 feature_name = item.get('feature', 'Unknown').replace('_', ' ').title()
                 value = item.get('value', 0)
-                doc.add_paragraph(f'• {feature_name}: {value:+.4f}')
+                impact = "increases risk" if value > 0 else "decreases risk"
+                shap_text += f"- **{feature_name}**: {value:+.4f} ({impact})\n"
+            add_formatted_paragraph(doc, shap_text.strip())
         
-        doc.add_page_break()
+        # Additional technical details
+        if result.get('debug'):
+            doc.add_heading('Technical Details', level=4)
+            debug_info = result['debug']
+            tech_text = f"""**Processing Information:**
+- Processing Time: {debug_info.get('processing_time_seconds', 0):.3f} seconds
+- Cache Used: {"Yes" if debug_info.get('cache_used', False) else "No"}
+- Model Threshold: {debug_info.get('model_threshold', 0):.3f}
+- SHA256: {debug_info.get('sha256', 'N/A')[:16]}...
+            """
+            add_formatted_paragraph(doc, tech_text.strip())
+        
+        # Add separator between APK analyses
+        if i < len(results) - 1:
+            doc.add_page_break()
     
-    # Add Recommendations
+    # Add comprehensive Security Recommendations
     doc.add_heading('Security Recommendations', level=1)
-    doc.add_paragraph('Based on the analysis, consider the following recommendations:')
-    doc.add_paragraph('• Review all RED risk APKs immediately')
-    doc.add_paragraph('• Investigate AMBER risk APKs thoroughly')
-    doc.add_paragraph('• Implement additional security measures for suspicious apps')
-    doc.add_paragraph('• Regular scanning of new APKs before deployment')
+    recommendations_text = """
+**Immediate Actions:**
+- Review all RED risk APKs immediately and consider blocking/quarantining
+- Investigate AMBER risk APKs thoroughly before deployment
+- Verify the source and authenticity of all suspicious applications
+
+**Security Best Practices:**
+- Implement regular APK scanning before deployment
+- Establish a security review process for all mobile applications
+- Monitor for new threats and update security policies accordingly
+- Consider implementing additional runtime protection measures
+
+**Risk Mitigation Strategies:**
+- For high-risk APKs: Perform detailed manual analysis and sandbox testing
+- For medium-risk APKs: Implement additional monitoring and access controls  
+- For all APKs: Verify digital signatures and certificate chains
+- Maintain an updated whitelist of trusted application sources
+    """
+    
+    add_formatted_paragraph(doc, recommendations_text.strip())
+    
+    # Add footer with metadata
+    doc.add_paragraph()
+    footer_text = f"""
+**Report Metadata:**
+- Generated by: APK Security Analysis System v2.0
+- Analysis Engine: XGBoost with SHAP explainability
+- Total Processing Time: {sum(r.get('debug', {}).get('processing_time_seconds', 0) for r in results):.2f} seconds
+- Report Generation: {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
+    """
+    add_formatted_paragraph(doc, footer_text.strip())
     
     # Save the document to a BytesIO object and return as base64
     import io
@@ -1494,66 +1644,353 @@ def _generate_word_report(results: List[Dict]) -> str:
 
 def _generate_html_batch_report(results: List[Dict]) -> str:
     """Fallback HTML report generation if python-docx is not available"""
+    import re
+    
+    def format_markdown_to_html(text):
+        """Convert markdown formatting to HTML"""
+        if not text:
+            return ""
+            
+        # Convert bold text (**text** or __text__)
+        text = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+        text = re.sub(r'__(.*?)__', r'<strong>\1</strong>', text)
+        
+        # Convert headers
+        text = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', text, flags=re.MULTILINE)
+        text = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', text, flags=re.MULTILINE)  
+        text = re.sub(r'^# (.*?)$', r'<h1>\1</h1>', text, flags=re.MULTILINE)
+        
+        # Convert bullet points
+        lines = text.split('\n')
+        in_list = False
+        formatted_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if line.startswith('- ') or line.startswith('* '):
+                if not in_list:
+                    formatted_lines.append('<ul>')
+                    in_list = True
+                formatted_lines.append(f'<li>{line[2:]}</li>')
+            else:
+                if in_list:
+                    formatted_lines.append('</ul>')
+                    in_list = False
+                if line:
+                    formatted_lines.append(f'<p>{line}</p>')
+                else:
+                    formatted_lines.append('<br>')
+        
+        if in_list:
+            formatted_lines.append('</ul>')
+            
+        return '\n'.join(formatted_lines)
+    
     html = """
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>APK Security Analysis Report</title>
         <style>
-            body { font-family: Arial, sans-serif; margin: 40px; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; }
-            .summary { background: #f5f5f5; padding: 20px; margin: 20px 0; border-radius: 5px; }
-            .apk-analysis { border: 1px solid #ddd; margin: 20px 0; padding: 20px; border-radius: 5px; }
-            .fake { border-left: 5px solid #ff4444; }
-            .legit { border-left: 5px solid #44ff44; }
-            .red { color: #ff4444; font-weight: bold; }
-            .amber { color: #ffaa00; font-weight: bold; }
-            .green { color: #44ff44; font-weight: bold; }
+            body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+                margin: 0; 
+                padding: 20px; 
+                background: #f8fafc;
+                color: #1f2937;
+                line-height: 1.6;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                overflow: hidden;
+            }
+            .header { 
+                text-align: center; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 40px; 
+            }
+            .header h1 {
+                margin: 0 0 15px 0;
+                font-size: 2.5em;
+                font-weight: 800;
+            }
+            .content {
+                padding: 40px;
+            }
+            .summary { 
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); 
+                padding: 30px; 
+                margin: 30px 0; 
+                border-radius: 12px; 
+                border: 1px solid #e5e7eb;
+            }
+            .summary h2 {
+                color: #111827;
+                border-bottom: 3px solid #667eea;
+                padding-bottom: 10px;
+            }
+            .apk-analysis { 
+                border: 1px solid #e5e7eb; 
+                margin: 30px 0; 
+                padding: 30px; 
+                border-radius: 12px; 
+                background: #fff;
+            }
+            .fake { border-left: 5px solid #ef4444; }
+            .legit { border-left: 5px solid #10b981; }
+            .red { color: #ef4444; font-weight: bold; }
+            .amber { color: #f59e0b; font-weight: bold; }
+            .green { color: #10b981; font-weight: bold; }
+            .analysis-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+                margin: 20px 0;
+            }
+            .stat-card {
+                background: #f9fafb;
+                padding: 20px;
+                border-radius: 8px;
+                text-align: center;
+                border: 1px solid #e5e7eb;
+            }
+            .stat-value {
+                font-size: 2em;
+                font-weight: bold;
+                margin-bottom: 5px;
+            }
+            .ai-explanation {
+                background: #f0f9ff;
+                padding: 20px;
+                border-left: 4px solid #0ea5e9;
+                margin: 15px 0;
+                border-radius: 0 8px 8px 0;
+            }
+            .technical-details {
+                background: #fafafa;
+                padding: 20px;
+                border-radius: 8px;
+                margin: 15px 0;
+            }
+            .feature-list {
+                columns: 2;
+                column-gap: 30px;
+            }
+            .feature-item {
+                break-inside: avoid;
+                margin-bottom: 8px;
+                padding: 8px;
+                background: #f3f4f6;
+                border-radius: 4px;
+            }
+            @media (max-width: 768px) {
+                body { padding: 10px; }
+                .content { padding: 20px; }
+                .analysis-grid { grid-template-columns: 1fr; }
+                .feature-list { columns: 1; }
+            }
         </style>
     </head>
     <body>
-        <div class="header">
-            <h1>APK Security Analysis Report</h1>
-            <p>Generated on: """ + __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC') + """</p>
-        </div>
+        <div class="container">
+            <div class="header">
+                <h1>🛡️ APK Security Analysis Report</h1>
+                <p>Comprehensive security analysis with AI-powered insights</p>
+                <p>Generated on: """ + __import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC') + """</p>
+            </div>
+            <div class="content">
     """
     
-    # Summary
+    # Executive Summary with enhanced formatting
     total_files = len(results)
     fake_count = sum(1 for r in results if r.get('prediction') == 'fake')
     legit_count = sum(1 for r in results if r.get('prediction') == 'legit')
+    red_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Red')
+    amber_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Amber')
+    green_count = sum(1 for r in results if r.get('risk_level', r.get('risk', 'Unknown')) == 'Green')
     
     html += f"""
         <div class="summary">
-            <h2>Executive Summary</h2>
-            <p><strong>Total APKs analyzed:</strong> {total_files}</p>
-            <p><strong>Legitimate APKs:</strong> {legit_count}</p>
-            <p><strong>Malicious APKs:</strong> {fake_count}</p>
-            <p><strong>Detection rate:</strong> {(fake_count/total_files)*100:.1f}% of files flagged as suspicious</p>
+            <h2>📊 Executive Summary</h2>
+            <div class="analysis-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{total_files}</div>
+                    <div>Total APKs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value legit">{legit_count}</div>
+                    <div>Legitimate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value fake">{fake_count}</div>
+                    <div>Malicious</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{(fake_count/total_files)*100:.1f}%</div>
+                    <div>Detection Rate</div>
+                </div>
+            </div>
+            
+            <h3>Risk Distribution</h3>
+            <div class="analysis-grid">
+                <div class="stat-card">
+                    <div class="stat-value red">{red_count}</div>
+                    <div>High Risk (Red)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value amber">{amber_count}</div>
+                    <div>Medium Risk (Amber)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value green">{green_count}</div>
+                    <div>Low Risk (Green)</div>
+                </div>
+            </div>
         </div>
     """
     
-    # Individual APK Analysis
-    for result in results:
+    # Individual APK Analysis with enhanced formatting
+    for i, result in enumerate(results, 1):
         prediction = result.get('prediction', 'unknown')
-        risk = result.get('risk', 'Unknown')
+        risk = result.get('risk_level', result.get('risk', 'Unknown'))
         probability = result.get('probability', 0)
-        ai_explanation = _generate_ai_explanation(result)
+        confidence = result.get('confidence', 'Unknown')
+        
+        # Get AI explanation with proper formatting
+        ai_explanation = result.get('ai_explanation', '') or _generate_ai_explanation(result)
+        formatted_ai_explanation = format_markdown_to_html(ai_explanation)
         
         risk_class = risk.lower()
         pred_class = prediction
         
         html += f"""
         <div class="apk-analysis {pred_class}">
-            <h3>Analysis for {result.get('file', 'N/A')}</h3>
-            <p><strong>Prediction:</strong> {prediction.title()}</p>
-            <p><strong>Risk Level:</strong> <span class="{risk_class}">{risk}</span></p>
-            <p><strong>Confidence:</strong> {probability:.1%}</p>
-            <p><strong>AI Explanation:</strong> {ai_explanation}</p>
-        </div>
+            <h2>📱 Analysis #{i}: {result.get('file', 'N/A')}</h2>
+            
+            <div class="analysis-grid">
+                <div class="stat-card">
+                    <div class="stat-value {pred_class}">{prediction.title()}</div>
+                    <div>Prediction</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value {risk_class}">{risk}</div>
+                    <div>Risk Level</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{probability:.1%}</div>
+                    <div>Confidence</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{confidence}</div>
+                    <div>Certainty</div>
+                </div>
+            </div>
+            
+            <div class="ai-explanation">
+                <h3>🤖 AI Security Analysis</h3>
+                {formatted_ai_explanation}
+            </div>
         """
+        
+        # Technical details
+        feature_vector = result.get('feature_vector', {})
+        
+        # Permissions
+        permissions = [k for k, v in feature_vector.items() 
+                      if k in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS', 'SYSTEM_ALERT_WINDOW', 'READ_CONTACTS', 'INTERNET', 'QUERY_ALL_PACKAGES'] 
+                      and v == 1]
+        
+        # Suspicious APIs
+        suspicious_apis = [k for k, v in feature_vector.items() if k.startswith('api_') and v == 1]
+        
+        if permissions or suspicious_apis or result.get('top_shap'):
+            html += f"""
+            <div class="technical-details">
+                <h3>🔍 Technical Analysis</h3>
+            """
+            
+            if permissions:
+                html += f"""
+                <h4>Granted Permissions</h4>
+                <div class="feature-list">
+                """
+                for perm in permissions:
+                    perm_display = perm.replace("_", " ").title()
+                    html += f'<div class="feature-item">🔓 {perm_display}</div>'
+                html += "</div>"
+            
+            if suspicious_apis:
+                html += f"""
+                <h4>Suspicious APIs Detected</h4>
+                <div class="feature-list">
+                """
+                for api in suspicious_apis:
+                    api_name = api.replace('api_', '').replace('_', ' ').title()
+                    html += f'<div class="feature-item">⚠️ {api_name}</div>'
+                html += "</div>"
+            
+            if result.get('top_shap'):
+                html += f"""
+                <h4>Top Contributing Features (SHAP Analysis)</h4>
+                <ul>
+                """
+                for item in result.get('top_shap', []):
+                    feature_name = item.get('feature', 'Unknown').replace('_', ' ').title()
+                    value = item.get('value', 0)
+                    impact = "increases risk" if value > 0 else "decreases risk"
+                    impact_class = "red" if value > 0 else "green"
+                    html += f'<li><strong>{feature_name}</strong>: <span class="{impact_class}">{value:+.4f}</span> ({impact})</li>'
+                html += "</ul>"
+            
+            html += "</div>"
+        
+        html += "</div>"
     
-    html += """
+    # Security Recommendations
+    html += f"""
+        <div class="summary">
+            <h2>🛡️ Security Recommendations</h2>
+            
+            <h3>Immediate Actions</h3>
+            <ul>
+                <li><strong>Review all RED risk APKs immediately</strong> and consider blocking/quarantining</li>
+                <li><strong>Investigate AMBER risk APKs thoroughly</strong> before deployment</li>
+                <li><strong>Verify the source and authenticity</strong> of all suspicious applications</li>
+            </ul>
+            
+            <h3>Security Best Practices</h3>
+            <ul>
+                <li>Implement regular APK scanning before deployment</li>
+                <li>Establish a security review process for all mobile applications</li>
+                <li>Monitor for new threats and update security policies accordingly</li>
+                <li>Consider implementing additional runtime protection measures</li>
+            </ul>
+            
+            <h3>Risk Mitigation Strategies</h3>
+            <ul>
+                <li><strong>High-risk APKs:</strong> Perform detailed manual analysis and sandbox testing</li>
+                <li><strong>Medium-risk APKs:</strong> Implement additional monitoring and access controls</li>
+                <li><strong>All APKs:</strong> Verify digital signatures and certificate chains</li>
+                <li>Maintain an updated whitelist of trusted application sources</li>
+            </ul>
+        </div>
+        
+        <div class="summary">
+            <h2>📋 Report Metadata</h2>
+            <p><strong>Generated by:</strong> APK Security Analysis System v2.0</p>
+            <p><strong>Analysis Engine:</strong> XGBoost with SHAP explainability</p>
+            <p><strong>Total Processing Time:</strong> {sum(r.get('debug', {}).get('processing_time_seconds', 0) for r in results):.2f} seconds</p>
+            <p><strong>Report Generation:</strong> {__import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}</p>
+        </div>
+            </div>
+        </div>
     </body>
     </html>
     """
