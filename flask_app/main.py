@@ -360,15 +360,31 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             print(f"❌ SHAP import failed: {e}")
             top_shap = []
 
-        # Calculate confidence score
-        if prob >= 0.8 or prob <= 0.2:
-            confidence = "High"
-        elif prob >= 0.6 or prob <= 0.4:
-            confidence = "Medium"
-        else:
-            confidence = "Low"
+        # Calculate confidence score based on prediction
+        if pred == 1:  # Fake prediction
+            # For fake predictions, high probability = high confidence
+            if prob >= 0.8:
+                confidence = "High"
+            elif prob >= 0.6:
+                confidence = "Medium"
+            else:
+                confidence = "Low"
+        else:  # Legitimate prediction
+            # For legitimate predictions, low probability = high confidence
+            if prob <= 0.2:
+                confidence = "High"
+            elif prob <= 0.4:
+                confidence = "Medium"
+            else:
+                confidence = "Low"
 
         label_map = {0: "legit", 1: "fake"}
+        
+        # Calculate confidence percentage for display
+        if pred == 1:  # Fake prediction
+            confidence_percentage = prob * 100  # Direct percentage
+        else:  # Legitimate prediction
+            confidence_percentage = (1 - prob) * 100  # Inverted percentage
         
         # Add confidence to result
         result = {
@@ -376,6 +392,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             "probability": prob,
             "risk_level": risk,  # Changed from "risk" to "risk_level" to match expected format
             "confidence": confidence,
+            "confidence_percentage": round(confidence_percentage, 1),  # Add user-friendly confidence percentage
             "top_shap": top_shap,
             "feature_vector": v["feature_map"],
             "processing_time": time.time() - start_time,
@@ -1176,10 +1193,10 @@ def _render_html_report(result: Dict, filename: str) -> str:
                         <h3>⚠️ Risk Level</h3>
                         <p class="value" style="color: {risk_color};">{risk}</p>
                     </div>
-                    <div class="summary-card">
-                        <h3>🎯 Confidence</h3>
-                        <p class="value">{prob:.1%}</p>
-                    </div>
+                                         <div class="summary-card">
+                         <h3>🎯 Confidence</h3>
+                         <p class="value">{result.get("confidence_percentage", 0):.1f}%</p>
+                     </div>
                     <div class="summary-card">
                         <h3>📈 Score</h3>
                         <p class="value">{prob:.3f}</p>
@@ -1592,7 +1609,7 @@ def _generate_word_report(results: List[Dict]) -> str:
         app_label = result.get('app_label', 'Unknown')
         prediction = result.get('prediction', 'Unknown').title()
         risk = result.get('risk_level', result.get('risk', 'Unknown'))
-        confidence = f'{result.get("probability", 0):.1%}'
+        confidence = f'{result.get("confidence_percentage", 0):.1f}%'
         
         # Generate AI explanation and truncate for table
         ai_explanation = result.get('ai_explanation', '') or _generate_ai_explanation(result)
@@ -1620,7 +1637,7 @@ def _generate_word_report(results: List[Dict]) -> str:
         basic_info = f"""
 **Prediction:** {result.get("prediction", "Unknown").title()}
 **Risk Level:** {result.get("risk_level", result.get("risk", "Unknown"))}
-**Confidence Score:** {result.get("probability", 0):.1%}
+**Confidence Score:** {result.get("confidence_percentage", 0):.1f}%
 **Confidence Level:** {result.get("confidence", "Unknown")}
         """
         
@@ -2045,10 +2062,10 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
                     <div class="stat-value {risk_class}">{risk}</div>
                     <div>Risk Level</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-value">{probability:.1%}</div>
-                    <div>Confidence</div>
-                </div>
+                                 <div class="stat-card">
+                     <div class="stat-value">{result.get('confidence_percentage', 0):.1f}%</div>
+                     <div>Confidence</div>
+                 </div>
                 <div class="stat-card">
                     <div class="stat-value">{confidence}</div>
                     <div>Certainty</div>
