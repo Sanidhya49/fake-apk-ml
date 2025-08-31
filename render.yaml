@@ -7,7 +7,7 @@ services:
     envVars:
       # Model configuration - CRITICAL for consistent outputs
       - key: ML_FAKE_THRESHOLD
-        value: "0.35"
+        value: "0.385"
       - key: ML_AGGRESSIVE
         value: "0"
       - key: ML_OFFICIAL_OVERRIDE
