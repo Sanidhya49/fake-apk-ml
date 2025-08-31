@@ -17,6 +17,7 @@ python-dotenv>=1.0.0
 
 # HTTP and API
 requests>=2.31.0
+google-generativeai>=0.3.0
 
 # FastAPI (Primary ML API)
 fastapi>=0.104.0

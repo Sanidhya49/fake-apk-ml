@@ -313,19 +313,51 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         top_shap = []
         try:
             import shap
+            print("✅ SHAP imported successfully")
             try:
-                explainer = shap.TreeExplainer(model)
+                print(f"🔍 SHAP Debug: Model type: {type(model)}")
+                print(f"🔍 SHAP Debug: X shape: {X.shape}")
+                print(f"🔍 SHAP Debug: Feature order length: {len(feature_order)}")
+                
+                # Handle CalibratedClassifierCV by extracting base model
+                if hasattr(model, 'estimator'):
+                    base_model = model.estimator
+                    print(f"🔍 SHAP Debug: Using estimator: {type(base_model)}")
+                elif hasattr(model, 'base_estimator'):
+                    base_model = model.base_estimator
+                    print(f"🔍 SHAP Debug: Using base model: {type(base_model)}")
+                else:
+                    base_model = model
+                    print(f"🔍 SHAP Debug: Using original model: {type(base_model)}")
+                
+                explainer = shap.TreeExplainer(base_model)
                 shap_values = explainer.shap_values(X)
+                print(f"🔍 SHAP Debug: SHAP values type: {type(shap_values)}")
+                
                 if isinstance(shap_values, list):
                     sv = shap_values[1][0]
+                    print(f"🔍 SHAP Debug: Using list index 1, shape: {sv.shape}")
                 else:
                     sv = shap_values[0]
+                    print(f"🔍 SHAP Debug: Using direct index 0, shape: {sv.shape}")
+                
                 idxs = np.argsort(np.abs(sv))[::-1][:3]
+                print(f"🔍 SHAP Debug: Top indices: {idxs}")
+                
                 for j in idxs:
-                    top_shap.append({"feature": feature_order[j], "value": float(sv[j])})
-            except Exception:
+                    if j < len(feature_order):
+                        top_shap.append({"feature": feature_order[j], "value": float(sv[j])})
+                    else:
+                        print(f"🔍 SHAP Debug: Index {j} out of range for feature_order")
+                
+                print(f"✅ SHAP analysis completed: {len(top_shap)} features")
+            except Exception as e:
+                print(f"❌ SHAP analysis failed: {e}")
+                import traceback
+                traceback.print_exc()
                 top_shap = []
-        except Exception:
+        except ImportError as e:
+            print(f"❌ SHAP import failed: {e}")
             top_shap = []
 
         # Calculate confidence score
@@ -346,7 +378,17 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             "confidence": confidence,
             "top_shap": top_shap,
             "feature_vector": v["feature_map"],
+            "processing_time": time.time() - start_time,
+            "model_threshold": threshold,
+            "cache_used": os.path.exists(cache_path) if 'cache_path' in locals() else False,
         }
+        
+        # Add AI explanation
+        try:
+            result["ai_explanation"] = _generate_ai_explanation(result)
+        except Exception as e:
+            print(f"❌ AI explanation generation failed: {e}")
+            result["ai_explanation"] = "AI explanation could not be generated"
         
         if debug:
             result["debug"] = {
@@ -447,6 +489,9 @@ def scan_single():
             
             # Predict (with timing)
             result = process_single_apk(temp_file.name, quick=quick, debug=debug)
+            
+            # Add original filename
+            result["file"] = file.filename
             
             # Add performance metrics
             processing_time = time.time() - start_time
@@ -1133,7 +1178,131 @@ def _render_html_report(result: Dict, filename: str) -> str:
     return html
 
 def _generate_ai_explanation(result: Dict) -> str:
-    """Generate AI explanation for the prediction"""
+    """Generate AI explanation for the prediction using Gemini API"""
+    try:
+        import requests
+        import json
+        import re
+        
+        # Load API key from environment variable (recommended)
+        API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAI32Wr0w0cLHNx-X10fG7f_fCDZ4SPIpk")
+        ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+        
+        def extract_json_from_text(text):
+            """Extract JSON content from text that might contain markdown code blocks or other text."""
+            json_pattern = r'```(?:json)?\n([\s\S]*?)```'
+            match = re.search(json_pattern, text)
+            
+            if match:
+                return match.group(1).strip()
+            return text.strip()
+        
+        def call_gemini(system_prompt, user_prompt):
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": f"System: {system_prompt}\nUser: {user_prompt}"
+                    }]
+                }]
+            }
+            
+            if not API_KEY:
+                raise ValueError("API key is missing. Please check your environment variables.")
+            
+            headers = {
+                "Content-Type": "application/json",
+                "X-goog-api-key": API_KEY
+            }
+            
+            response = requests.post(
+                ENDPOINT,
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            response_data = response.json()
+            
+            if 'candidates' not in response_data or not response_data['candidates']:
+                raise ValueError("No candidates found in response")
+            
+            raw_text = response_data['candidates'][0]['content']['parts'][0]['text']
+            clean_response = extract_json_from_text(raw_text)
+            
+            try:
+                return json.loads(clean_response)  # if valid JSON
+            except json.JSONDecodeError:
+                return {"raw_text": clean_response}
+        
+        # Prepare data for AI analysis
+        prediction = result.get('prediction', 'unknown')
+        probability = result.get('probability', 0)
+        risk_level = result.get('risk_level', 'Unknown')
+        confidence = result.get('confidence', 'Unknown')
+        feature_vector = result.get('feature_vector', {})
+        top_shap = result.get('top_shap', [])
+        
+        # Analyze key features
+        suspicious_count = feature_vector.get('count_suspicious', 0)
+        has_sms_permissions = any(feature_vector.get(perm, 0) == 1 for perm in ['READ_SMS', 'SEND_SMS', 'RECEIVE_SMS'])
+        has_contacts_permission = feature_vector.get('READ_CONTACTS', 0) == 1
+        has_system_alert = feature_vector.get('SYSTEM_ALERT_WINDOW', 0) == 1
+        is_official = feature_vector.get('pkg_official', 0) == 1
+        cert_present = feature_vector.get('cert_present', 0) == 1
+        
+        # Build prompts for Gemini
+        system_prompt = """You are a senior cybersecurity analyst specializing in Android application security and malware analysis. You have extensive experience in reverse engineering, threat intelligence, and mobile security assessment. Provide expert-level, professional cybersecurity analysis using industry-standard terminology, technical depth, and actionable security insights. Your analysis should be comprehensive, technically accurate, and suitable for cybersecurity professionals and security teams."""
+        
+        user_prompt = f"""
+        Conduct a comprehensive cybersecurity analysis of this Android APK security scan result. Provide a detailed, professional assessment suitable for security teams and cybersecurity professionals.
+
+        **APK Security Analysis Results:**
+        - **Classification:** {prediction.upper()}
+        - **Confidence Score:** {probability:.1%}
+        - **Risk Assessment:** {risk_level} Level
+        - **Analysis Confidence:** {confidence}
+
+        **Security Indicators Analysis:**
+        - **Suspicious API Count:** {suspicious_count} (threshold-based detection)
+        - **SMS Permissions:** {'DETECTED' if has_sms_permissions else 'Not Present'} (potential SMS-based attacks)
+        - **Contacts Access:** {'DETECTED' if has_contacts_permission else 'Not Present'} (data harvesting risk)
+        - **System Alert Window:** {'DETECTED' if has_system_alert else 'Not Present'} (overlay attack capability)
+        - **Package Verification:** {'Official' if is_official else 'Unofficial'} (trustworthiness indicator)
+        - **Code Signing:** {'Valid Certificate' if cert_present else 'No Certificate'} (integrity verification)
+
+        **Feature Importance Analysis (SHAP Values):**
+        {chr(10).join([f"- **{item.get('feature', 'Unknown').replace('_', ' ').title()}:** {item.get('value', 0):.4f} (contribution weight)" for item in top_shap])}
+
+        **Required Analysis Components:**
+        1. **Threat Assessment:** Detailed analysis of the classification with technical reasoning
+        2. **Risk Analysis:** Specific security risks, attack vectors, and potential impact
+        3. **Technical Indicators:** Deep dive into suspicious patterns, API usage, and behavioral analysis
+        4. **Security Recommendations:** Actionable mitigation strategies and security measures
+        5. **Professional Context:** Industry-standard cybersecurity terminology and expert insights
+
+        **Analysis Requirements:**
+        - Use professional cybersecurity terminology (malware, threat vectors, attack surfaces, etc.)
+        - Provide technical depth suitable for security professionals
+        - Include specific security recommendations and mitigation strategies
+        - Reference industry best practices and security frameworks
+        - Maintain professional tone suitable for security reports
+        - Focus on actionable intelligence for threat response teams
+
+        Provide a comprehensive cybersecurity analysis (200-300 words) that demonstrates expert-level understanding of mobile security threats and professional security assessment capabilities.
+        """
+        
+        response_data = call_gemini(system_prompt, user_prompt)
+        
+        if 'raw_text' in response_data:
+            return response_data['raw_text'].strip()
+        else:
+            return str(response_data).strip()
+            
+    except Exception as e:
+        print(f"❌ Gemini API failed: {e}, falling back to rule-based explanation")
+        return _generate_rule_based_explanation(result)
+
+def _generate_rule_based_explanation(result: Dict) -> str:
+    """Fallback rule-based explanation when Gemini API is not available"""
     prediction = result.get('prediction', 'unknown')
     probability = result.get('probability', 0)
     risk = result.get('risk', 'Unknown')
