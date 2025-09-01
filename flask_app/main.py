@@ -231,7 +231,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         saved_thr = get_cached_threshold()
 
         # Get SHA256 for caching
-            sha = get_sha256(file_path)
+        sha = get_sha256(file_path)
         
         # Check cache first
         cache_dir = os.path.join("artifacts", "static_jsons")
@@ -242,7 +242,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
                 with open(cache_path, "r", encoding="utf-8") as f:
                     ext = json.load(f)
             except:
-        ext = None
+                ext = None
         else:
             ext = None
 
@@ -346,7 +346,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
                 
                 for j in idxs:
                     if j < len(feature_order):
-                    top_shap.append({"feature": feature_order[j], "value": float(sv[j])})
+                        top_shap.append({"feature": feature_order[j], "value": float(sv[j])})
                     else:
                         print(f"🔍 SHAP Debug: Index {j} out of range for feature_order")
                 
@@ -767,9 +767,9 @@ def scan_batch():
         
         try:
             for file in valid_files:
-            # Save uploaded file temporarily
-            filename = secure_filename(file.filename)
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
+                # Save uploaded file temporarily
+                filename = secure_filename(file.filename)
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
                 temp_files.append(temp_file.name)
                 
                 # Get file size
@@ -976,7 +976,7 @@ def scan_batch():
             }
             
             return jsonify(response_data)
-            finally:
+        finally:
             # Clean up temporary files
             for temp_file in temp_files:
                 try:
@@ -1163,8 +1163,8 @@ def generate_batch_report():
             for temp_file in temp_files:
                 try:
                     os.unlink(temp_file)
-            except Exception:
-                pass
+                except Exception:
+                    pass
                 
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
@@ -3464,13 +3464,13 @@ if __name__ == '__main__':
             print("Waitress not available, using Flask development server...")
             app.run(host=host, port=port, debug=debug, threaded=True)
     else:
-    print(f"Starting Flask APK Detection API on {host}:{port}")
-    print(f"Model path: {MODEL_PATH}")
-    print(f"Debug mode: {debug}")
-    print("Available endpoints:")
-    print("  GET  /           - Health check")
-    print("  POST /scan       - Scan single APK")
-    print("  POST /scan-batch - Scan multiple APKs")
-    print("  POST /report     - Generate detailed report")
-    
+        print(f"Starting Flask APK Detection API on {host}:{port}")
+        print(f"Model path: {MODEL_PATH}")
+        print(f"Debug mode: {debug}")
+        print("Available endpoints:")
+        print("  GET  /           - Health check")
+        print("  POST /scan       - Scan single APK")
+        print("  POST /scan-batch - Scan multiple APKs")
+        print("  POST /report     - Generate detailed report")
+        
         app.run(host=host, port=port, debug=debug, threaded=True)
