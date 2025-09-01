@@ -231,7 +231,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         saved_thr = get_cached_threshold()
 
         # Get SHA256 for caching
-        sha = get_sha256(file_path)
+            sha = get_sha256(file_path)
         
         # Check cache first
         cache_dir = os.path.join("artifacts", "static_jsons")
@@ -242,7 +242,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
                 with open(cache_path, "r", encoding="utf-8") as f:
                     ext = json.load(f)
             except:
-                ext = None
+        ext = None
         else:
             ext = None
 
@@ -346,7 +346,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
                 
                 for j in idxs:
                     if j < len(feature_order):
-                        top_shap.append({"feature": feature_order[j], "value": float(sv[j])})
+                    top_shap.append({"feature": feature_order[j], "value": float(sv[j])})
                     else:
                         print(f"🔍 SHAP Debug: Index {j} out of range for feature_order")
                 
@@ -402,6 +402,17 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             "package": ext.get("package", ""),  # Add package name
             "version": ext.get("version", ""),  # Add version
             "file_size": ext.get("file_size", 0),  # Add file size
+            # Add app technical information for frontend display
+            "min_sdk": ext.get("min_sdk", 0) if ext.get("min_sdk", 0) > 0 else "N/A",
+            "target_sdk": ext.get("target_sdk", 0) if ext.get("target_sdk", 0) > 0 else "N/A",
+            "num_activities": ext.get("num_activities", 0) if ext.get("num_activities", 0) > 0 else "N/A",
+            "num_services": ext.get("num_services", 0) if ext.get("num_services", 0) > 0 else "N/A",
+            "num_receivers": ext.get("num_receivers", 0) if ext.get("num_receivers", 0) > 0 else "N/A",
+            "num_dex": ext.get("num_dex", 0) if ext.get("num_dex", 0) > 0 else "N/A",
+            "domains_count": len(ext.get("domains", [])) if ext.get("domains") else "N/A",
+            "main_activity": ext.get("main_activity", "N/A"),
+            "total_permissions": len(ext.get("permissions", [])),
+            "exported_components": len(ext.get("exported", [])),
         }
         
         # Add critical security features
@@ -756,9 +767,9 @@ def scan_batch():
         
         try:
             for file in valid_files:
-                # Save uploaded file temporarily
-                filename = secure_filename(file.filename)
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
+            # Save uploaded file temporarily
+            filename = secure_filename(file.filename)
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
                 temp_files.append(temp_file.name)
                 
                 # Get file size
@@ -860,7 +871,7 @@ def scan_batch():
                     result["security_indicators"] = security_indicators
                 
                 results.append(result)
-            
+                
             # Add comprehensive batch performance metrics
             processing_time = time.time() - start_time
             
@@ -965,8 +976,7 @@ def scan_batch():
             }
             
             return jsonify(response_data)
-            
-        finally:
+            finally:
             # Clean up temporary files
             for temp_file in temp_files:
                 try:
@@ -1153,8 +1163,8 @@ def generate_batch_report():
             for temp_file in temp_files:
                 try:
                     os.unlink(temp_file)
-                except Exception:
-                    pass
+            except Exception:
+                pass
                 
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
@@ -1601,10 +1611,10 @@ def _render_html_report(result: Dict, filename: str) -> str:
                         <h3>⚠️ Risk Level</h3>
                         <p class="value" style="color: {risk_color};">{risk}</p>
                     </div>
-                                         <div class="summary-card">
-                         <h3>🎯 Confidence</h3>
+                    <div class="summary-card">
+                        <h3>🎯 Confidence</h3>
                          <p class="value">{result.get("confidence_percentage", 0):.1f}%</p>
-                     </div>
+                    </div>
                     <div class="summary-card">
                         <h3>📈 Score</h3>
                         <p class="value">{prob:.3f}</p>
@@ -3454,13 +3464,13 @@ if __name__ == '__main__':
             print("Waitress not available, using Flask development server...")
             app.run(host=host, port=port, debug=debug, threaded=True)
     else:
-        print(f"Starting Flask APK Detection API on {host}:{port}")
-        print(f"Model path: {MODEL_PATH}")
-        print(f"Debug mode: {debug}")
-        print("Available endpoints:")
-        print("  GET  /           - Health check")
-        print("  POST /scan       - Scan single APK")
-        print("  POST /scan-batch - Scan multiple APKs")
-        print("  POST /report     - Generate detailed report")
-        
+    print(f"Starting Flask APK Detection API on {host}:{port}")
+    print(f"Model path: {MODEL_PATH}")
+    print(f"Debug mode: {debug}")
+    print("Available endpoints:")
+    print("  GET  /           - Health check")
+    print("  POST /scan       - Scan single APK")
+    print("  POST /scan-batch - Scan multiple APKs")
+    print("  POST /report     - Generate detailed report")
+    
         app.run(host=host, port=port, debug=debug, threaded=True)
