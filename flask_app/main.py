@@ -404,6 +404,53 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             "file_size": ext.get("file_size", 0),  # Add file size
         }
         
+        # Add critical security features
+        try:
+            # Extract critical permissions
+            permissions = ext.get("permissions", [])
+            critical_permissions = []
+            for perm in permissions:
+                if any(critical in perm.lower() for critical in [
+                    'sms', 'contacts', 'location', 'camera', 'microphone', 
+                    'phone', 'calendar', 'call_log', 'storage', 'system_alert'
+                ]):
+                    critical_permissions.append(perm)
+            
+            # Count suspicious APIs
+            suspicious_apis = ext.get("suspicious_apis", [])
+            suspicious_api_count = len(suspicious_apis)
+            
+            # Get certificate information
+            cert_subject = ext.get("cert_subject", "unknown")
+            cert_issuer = ext.get("cert_issuer", "unknown")
+            cert_present = 1 if cert_subject != "unknown" else 0
+            
+            # Determine app trust level
+            app_trust_level = "High" if is_official else "Low"
+            
+            # Add to result
+            result.update({
+                "critical_permissions": critical_permissions,
+                "suspicious_api_count": suspicious_api_count,
+                "total_permissions": len(permissions),
+                "certificate_status": "Valid" if cert_present else "Missing",
+                "signing_authority": cert_issuer,
+                "app_trust_level": app_trust_level,
+                "critical_labels": critical_permissions  # For backward compatibility
+            })
+        except Exception as e:
+            print(f"⚠️  Could not extract critical features: {e}")
+            # Add default values
+            result.update({
+                "critical_permissions": [],
+                "suspicious_api_count": 0,
+                "total_permissions": 0,
+                "certificate_status": "Unknown",
+                "signing_authority": "Unknown",
+                "app_trust_level": "Unknown",
+                "critical_labels": []
+            })
+        
         # Add AI explanation
         try:
             result["ai_explanation"] = _generate_ai_explanation(result)
@@ -939,11 +986,55 @@ def scan_batch():
 
 @app.route('/report', methods=['POST'])
 def generate_report():
-    """Generate a detailed HTML report for an APK"""
+    """Generate a detailed HTML report for an APK
+    
+    Accepts either:
+    1. File upload (multipart/form-data) - processes the APK and generates report
+    2. JSON data with existing scan results - generates report from results
+    """
     try:
-        # Check if file is in request
+        # Check if this is a JSON request with existing results
+        if request.content_type and 'application/json' in request.content_type:
+            try:
+                data = request.get_json()
+                if not data:
+                    return jsonify({"error": "invalid_json", "detail": "Invalid JSON data"}), 400
+                
+                # Check if we have results data
+                if 'results' not in data:
+                    return jsonify({"error": "missing_results", "detail": "No results data provided"}), 400
+                
+                results = data['results']
+                if not results or not isinstance(results, list):
+                    return jsonify({"error": "invalid_results", "detail": "Results must be a non-empty list"}), 400
+                
+                # Check format preference
+                report_format = data.get('format', 'html').lower()
+                
+                if report_format == 'html':
+                    # Generate HTML report for first result
+                    result = results[0]
+                    filename = result.get('package', 'unknown') or 'unknown'
+                    html_report = _render_html_report(result, filename)
+                    return html_report, 200, {'Content-Type': 'text/html'}
+                
+                elif report_format == 'word':
+                    # Generate Word report
+                    word_report = _generate_word_report(results)
+                    return word_report, 200, {
+                        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'Content-Disposition': 'attachment; filename=apk_analysis_report.docx'
+                    }
+                
+                else:
+                    return jsonify({"error": "invalid_format", "detail": "Format must be 'html' or 'word'"}), 400
+                    
+            except Exception as e:
+                return jsonify({"error": "json_processing_error", "detail": str(e)}), 400
+        
+        # Handle file upload case (original functionality)
         if 'file' not in request.files:
-            return jsonify({"error": "no_file", "detail": "No file provided"}), 400
+            return jsonify({"error": "no_file", "detail": "No file provided. Send either a file upload or JSON data with results."}), 400
         
         file = request.files['file']
         if file.filename == '':
@@ -3130,7 +3221,7 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
     
     # Individual APK Analysis with enhanced formatting
     for i, result in enumerate(results, 1):
-        prediction = result.get('prediction', 'unknown')
+        prediction = result.get('prediction')
         risk = result.get('risk_level', result.get('risk', 'Unknown'))
         probability = result.get('probability', 0)
         confidence = result.get('confidence', 'Unknown')
