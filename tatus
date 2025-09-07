@@ -1,0 +1,54 @@
+warning: in the working copy of 'flask_app/main.py', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/flask_app/main.py b/flask_app/main.py[m
+[1mindex b78d0cc..f85d1c3 100644[m
+[1m--- a/flask_app/main.py[m
+[1m+++ b/flask_app/main.py[m
+[36m@@ -402,6 +402,17 @@[m [mdef process_single_apk(file_path: str, quick: bool = False, debug: bool = False)[m
+             "package": ext.get("package", ""),  # Add package name[m
+             "version": ext.get("version", ""),  # Add version[m
+             "file_size": ext.get("file_size", 0),  # Add file size[m
+[32m+[m[32m            # Add app technical information for frontend display[m
+[32m+[m[32m            "min_sdk": ext.get("min_sdk", 0) if ext.get("min_sdk", 0) > 0 else "N/A",[m
+[32m+[m[32m            "target_sdk": ext.get("target_sdk", 0) if ext.get("target_sdk", 0) > 0 else "N/A",[m
+[32m+[m[32m            "num_activities": ext.get("num_activities", 0) if ext.get("num_activities", 0) > 0 else "N/A",[m
+[32m+[m[32m            "num_services": ext.get("num_services", 0) if ext.get("num_services", 0) > 0 else "N/A",[m
+[32m+[m[32m            "num_receivers": ext.get("num_receivers", 0) if ext.get("num_receivers", 0) > 0 else "N/A",[m
+[32m+[m[32m            "num_dex": ext.get("num_dex", 0) if ext.get("num_dex", 0) > 0 else "N/A",[m
+[32m+[m[32m            "domains_count": len(ext.get("domains", [])) if ext.get("domains") else "N/A",[m
+[32m+[m[32m            "main_activity": ext.get("main_activity", "N/A"),[m
+[32m+[m[32m            "total_permissions": len(ext.get("permissions", [])),[m
+[32m+[m[32m            "exported_components": len(ext.get("exported", [])),[m
+         }[m
+         [m
+         # Add critical security features[m
+[36m@@ -860,7 +871,7 @@[m [mdef scan_batch():[m
+                     result["security_indicators"] = security_indicators[m
+                 [m
+                 results.append(result)[m
+[31m-            [m
+[32m+[m[41m                [m
+             # Add comprehensive batch performance metrics[m
+             processing_time = time.time() - start_time[m
+             [m
+[36m@@ -965,7 +976,6 @@[m [mdef scan_batch():[m
+             }[m
+             [m
+             return jsonify(response_data)[m
+[31m-            [m
+         finally:[m
+             # Clean up temporary files[m
+             for temp_file in temp_files:[m
+[36m@@ -1601,10 +1611,10 @@[m [mdef _render_html_report(result: Dict, filename: str) -> str:[m
+                         <h3>⚠️ Risk Level</h3>[m
+                         <p class="value" style="color: {risk_color};">{risk}</p>[m
+                     </div>[m
+[31m-                                         <div class="summary-card">[m
+[31m-                         <h3>🎯 Confidence</h3>[m
+[32m+[m[32m                    <div class="summary-card">[m
+[32m+[m[32m                        <h3>🎯 Confidence</h3>[m
+                          <p class="value">{result.get("confidence_percentage", 0):.1f}%</p>[m
+[31m-                     </div>[m
+[32m+[m[32m                    </div>[m
+                     <div class="summary-card">[m
+                         <h3>📈 Score</h3>[m
+                         <p class="value">{prob:.3f}</p>[m

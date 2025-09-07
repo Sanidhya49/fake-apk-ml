@@ -313,7 +313,7 @@ This project is licensed under the MIT License
 - **Open Source Community**: For the amazing tools and libraries
 - **Law Enforcement**: For highlighting real-world cybersecurity needs
 
-## 📞 Contact
+## 📞 Contact details
 
 - **GitHub**: [@Sanidhya49](https://github.com/Sanidhya49)
 - **Medium**: [@alwaysanidhya](https://alwaysanidhya.medium.com/)
@@ -325,6 +325,6 @@ This project is licensed under the MIT License
 
 **⭐ Star this repository if you find it helpful!**
 
-**🔒 Making the digital world safer**
+**🔒 Making the digital world safer** 
 
 </div>

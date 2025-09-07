@@ -1,0 +1,23 @@
+{
+  "hashes": [
+    "test_hash_456",
+    "comprehensive_test_hash_456",
+    "known_bad_hash_123",
+    "test_hash_123",
+    "comprehensive_test_hash_123",
+    "comprehensive_known_bad_hash_789",
+    "integration_test_hash_789"
+  ],
+  "packages": [
+    "com.fake.bank",
+    "com.fake.comprehensive",
+    "com.test.malicious",
+    "com.test.comprehensive"
+  ],
+  "cert_fingerprints": [
+    "comprehensive_cert_123",
+    "test_cert_123"
+  ],
+  "last_updated": 1757264361,
+  "version": "1.0"
+}

@@ -10,6 +10,8 @@ def ensure_dirs() -> None:
     """Create required directories if missing."""
     for path in [
         os.path.join("artifacts", "static_jsons"),
+        os.path.join("artifacts", "reports"),
+        os.path.join("artifacts", "threat_intel"),
         os.path.join("models"),
         os.path.join("data"),
     ]:

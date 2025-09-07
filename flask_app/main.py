@@ -66,6 +66,7 @@ _model_cache = None
 _feature_order_cache = None
 _saved_threshold_cache = None
 _bank_whitelist_cache = None
+_threat_feed_cache = None
 
 import logging
 
@@ -156,6 +157,74 @@ def get_cached_bank_whitelist():
         _bank_whitelist_cache = load_bank_whitelist()
     return _bank_whitelist_cache
 
+def get_cached_threat_feed():
+    """Get cached threat feed data"""
+    global _threat_feed_cache
+    if _threat_feed_cache is None:
+        _threat_feed_cache = load_threat_feed()
+    return _threat_feed_cache
+
+def load_threat_feed():
+    """Load threat feed from JSON file"""
+    feed_path = os.path.join("artifacts", "threat_intel", "bad_hashes.json")
+    try:
+        if os.path.exists(feed_path):
+            with open(feed_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {
+                    "hashes": set(data.get("hashes", [])),
+                    "packages": set(data.get("packages", [])),
+                    "cert_fingerprints": set(data.get("cert_fingerprints", [])),
+                    "last_updated": data.get("last_updated", 0),
+                    "version": data.get("version", "1.0")
+                }
+    except Exception as e:
+        print(f"Warning: Could not load threat feed: {e}")
+    
+    return {
+        "hashes": set(),
+        "packages": set(),
+        "cert_fingerprints": set(),
+        "last_updated": 0,
+        "version": "1.0"
+    }
+
+def save_threat_feed(feed_data):
+    """Save threat feed to JSON file"""
+    feed_path = os.path.join("artifacts", "threat_intel", "bad_hashes.json")
+    try:
+        os.makedirs(os.path.dirname(feed_path), exist_ok=True)
+        with open(feed_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "hashes": list(feed_data["hashes"]),
+                "packages": list(feed_data["packages"]),
+                "cert_fingerprints": list(feed_data["cert_fingerprints"]),
+                "last_updated": int(time.time()),
+                "version": feed_data.get("version", "1.0")
+            }, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving threat feed: {e}")
+        return False
+
+def check_threat_feed(sha256_hash, package_name=None, cert_fingerprint=None):
+    """Check if APK matches known bad indicators"""
+    feed = get_cached_threat_feed()
+    
+    # Check hash
+    if sha256_hash in feed["hashes"]:
+        return {"match": True, "type": "hash", "value": sha256_hash}
+    
+    # Check package name
+    if package_name and package_name in feed["packages"]:
+        return {"match": True, "type": "package", "value": package_name}
+    
+    # Check certificate fingerprint
+    if cert_fingerprint and cert_fingerprint in feed["cert_fingerprints"]:
+        return {"match": True, "type": "certificate", "value": cert_fingerprint}
+    
+    return {"match": False, "type": None, "value": None}
+
 @lru_cache(maxsize=1000)
 def allowed_file(filename):
     """Check if uploaded file has allowed extension (cached)"""
@@ -233,6 +302,9 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         # Get SHA256 for caching
         sha = get_sha256(file_path)
         
+        # Check threat feed first (fastest check)
+        threat_check = check_threat_feed(sha)
+        
         # Check cache first
         cache_dir = os.path.join("artifacts", "static_jsons")
         cache_path = os.path.join(cache_dir, f"{sha}.json")
@@ -300,6 +372,11 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         # Official package override
         if is_official and prob <= official_override_cap:
             pred = 0
+        
+        # Threat feed override (highest priority)
+        if threat_check["match"]:
+            pred = 1  # Force fake prediction
+            prob = 0.95  # High confidence for known bad
         
         # Risk categorization with confidence
         if prob >= max(0.8, threshold):
@@ -413,6 +490,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             "main_activity": ext.get("main_activity", "N/A"),
             "total_permissions": len(ext.get("permissions", [])),
             "exported_components": len(ext.get("exported", [])),
+            "threat_feed_match": threat_check,
         }
         
         # Add critical security features
@@ -519,7 +597,10 @@ def health_check():
         "endpoints": {
             "scan_single": "POST /scan",
             "scan_batch": "POST /scan-batch",
-            "generate_report": "POST /report"
+            "generate_report": "POST /report",
+            "report_abuse": "POST /report-abuse",
+            "threat_feed": "GET /threat-feed",
+            "submit_threat_intel": "POST /threat/submit"
         }
     })
 
@@ -1168,6 +1249,243 @@ def generate_batch_report():
                 
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/report-abuse', methods=['POST'])
+def report_abuse():
+    """Report malicious APK with evidence bundle and generate STIX/email templates"""
+    try:
+        # Check if file is in request
+        if 'file' not in request.files:
+            return jsonify({"error": "no_file", "detail": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "no_file", "detail": "No file selected"}), 400
+        
+        # Validate file type
+        if not allowed_file(file.filename):
+            return jsonify({
+                "error": "invalid_file_type", 
+                "detail": f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
+            }), 400
+        
+        # Get additional report data
+        reporter_email = request.form.get('reporter_email', 'anonymous@example.com')
+        reporter_name = request.form.get('reporter_name', 'Anonymous')
+        additional_notes = request.form.get('additional_notes', '')
+        
+        # Save uploaded file temporarily
+        filename = secure_filename(file.filename)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
+        try:
+            file.save(temp_file.name)
+            temp_file.close()
+            
+            # Make sure directories exist
+            ensure_dirs()
+            
+            # Get comprehensive analysis
+            result = process_single_apk(temp_file.name, quick=False, debug=True)
+            
+            # Check for errors
+            if "error" in result:
+                return jsonify(result), 422 if result["error"] == "parse_failed" else 500
+            
+            # Generate evidence bundle
+            evidence_bundle = _generate_evidence_bundle(result, filename, reporter_email, reporter_name, additional_notes)
+            
+            # Save report to disk
+            report_id = f"report_{int(time.time())}_{result.get('sha256', 'unknown')[:8]}"
+            report_path = os.path.join("artifacts", "reports", f"{report_id}.json")
+            
+            with open(report_path, "w", encoding="utf-8") as f:
+                json.dump(evidence_bundle, f, indent=2, ensure_ascii=False)
+            
+            # Add to threat feed if malicious
+            if result.get("prediction") == "fake" or result.get("probability", 0) > 0.7:
+                _add_to_threat_feed(result)
+            
+            return jsonify({
+                "status": "success",
+                "report_id": report_id,
+                "evidence_bundle": evidence_bundle,
+                "threat_feed_updated": result.get("prediction") == "fake" or result.get("probability", 0) > 0.7,
+                "message": "Abuse report submitted successfully"
+            })
+            
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file.name)
+            except Exception:
+                pass
+                
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/threat-feed', methods=['GET'])
+def get_threat_feed():
+    """Get current threat feed data"""
+    try:
+        feed = get_cached_threat_feed()
+        return jsonify({
+            "status": "success",
+            "feed": {
+                "hash_count": len(feed["hashes"]),
+                "package_count": len(feed["packages"]),
+                "cert_fingerprint_count": len(feed["cert_fingerprints"]),
+                "last_updated": feed["last_updated"],
+                "version": feed["version"]
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/threat/submit', methods=['POST'])
+def submit_threat_intel():
+    """Submit new threat intelligence data"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "no_data", "detail": "No JSON data provided"}), 400
+        
+        # Get current feed
+        current_feed = get_cached_threat_feed()
+        
+        # Add new indicators
+        if "hashes" in data:
+            current_feed["hashes"].update(data["hashes"])
+        if "packages" in data:
+            current_feed["packages"].update(data["packages"])
+        if "cert_fingerprints" in data:
+            current_feed["cert_fingerprints"].update(data["cert_fingerprints"])
+        
+        # Save updated feed
+        if save_threat_feed(current_feed):
+            # Clear cache to force reload
+            global _threat_feed_cache
+            _threat_feed_cache = None
+            
+            return jsonify({
+                "status": "success",
+                "message": "Threat intelligence updated successfully",
+                "new_counts": {
+                    "hashes": len(current_feed["hashes"]),
+                    "packages": len(current_feed["packages"]),
+                    "cert_fingerprints": len(current_feed["cert_fingerprints"])
+                }
+            })
+        else:
+            return jsonify({"error": "save_failed", "detail": "Could not save threat feed"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+def _generate_evidence_bundle(result, filename, reporter_email, reporter_name, additional_notes):
+    """Generate comprehensive evidence bundle for abuse reporting"""
+    timestamp = int(time.time())
+    
+    # Extract IOCs
+    domains = result.get("domains", [])
+    package = result.get("package", "")
+    sha256 = result.get("sha256", "")
+    
+    evidence = {
+        "report_metadata": {
+            "report_id": f"report_{timestamp}_{sha256[:8] if sha256 else 'unknown'}",
+            "timestamp": timestamp,
+            "reporter": {
+                "email": reporter_email,
+                "name": reporter_name
+            },
+            "additional_notes": additional_notes
+        },
+        "apk_analysis": {
+            "filename": filename,
+            "sha256": sha256,
+            "package": package,
+            "app_label": result.get("app_label", ""),
+            "version": result.get("version", ""),
+            "file_size": result.get("file_size", 0),
+            "prediction": result.get("prediction", "unknown"),
+            "probability": result.get("probability", 0),
+            "risk_level": result.get("risk_level", "Unknown")
+        },
+        "technical_indicators": {
+            "domains": domains,
+            "permissions": result.get("permissions", []),
+            "suspicious_apis": result.get("suspicious_apis_analysis", []),
+            "certificate_info": {
+                "subject": result.get("cert_subject", "unknown"),
+                "issuer": result.get("cert_issuer", "unknown"),
+                "status": result.get("certificate_status", "Unknown")
+            }
+        },
+        "stix_template": {
+            "type": "indicator",
+            "labels": ["malicious-activity"],
+            "pattern": f"[file:hashes.'SHA-256' = '{sha256}']",
+            "valid_from": timestamp,
+            "description": f"Malicious APK: {filename} - {result.get('app_label', 'Unknown app')}"
+        },
+        "email_template": {
+            "to": ["abuse@example.com", "cert@example.com"],
+            "subject": f"Malicious APK Report: {filename}",
+            "body": f"""
+Malicious APK Detected
+
+Report ID: {timestamp}
+Reporter: {reporter_name} ({reporter_email})
+
+APK Details:
+- Filename: {filename}
+- SHA-256: {sha256}
+- Package: {package}
+- App Label: {result.get('app_label', 'Unknown')}
+- Risk Level: {result.get('risk_level', 'Unknown')}
+- Confidence: {result.get('confidence_percentage', 0)}%
+
+Technical Indicators:
+- Domains: {', '.join(domains) if domains else 'None'}
+- Suspicious Permissions: {', '.join(result.get('critical_permissions', []))}
+- Certificate Status: {result.get('certificate_status', 'Unknown')}
+
+Additional Notes:
+{additional_notes}
+
+Please investigate and take appropriate action.
+
+Generated by Digital Rakshak Threat Intelligence System
+"""
+        }
+    }
+    
+    return evidence
+
+def _add_to_threat_feed(result):
+    """Add malicious APK indicators to threat feed"""
+    try:
+        current_feed = get_cached_threat_feed()
+        
+        # Add hash
+        sha256 = result.get("sha256")
+        if sha256:
+            current_feed["hashes"].add(sha256)
+        
+        # Add package name
+        package = result.get("package")
+        if package:
+            current_feed["packages"].add(package)
+        
+        # Save updated feed
+        save_threat_feed(current_feed)
+        
+        # Clear cache
+        global _threat_feed_cache
+        _threat_feed_cache = None
+        
+    except Exception as e:
+        print(f"Warning: Could not add to threat feed: {e}")
 
 def _render_html_report(result: Dict, filename: str) -> str:
     """Generate HTML report from analysis result"""
