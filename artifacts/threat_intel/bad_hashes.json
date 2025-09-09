@@ -1,23 +1,31 @@
 {
   "hashes": [
-    "test_hash_456",
-    "comprehensive_test_hash_456",
-    "known_bad_hash_123",
     "test_hash_123",
     "comprehensive_test_hash_123",
+    "test_hash_456",
+    "known_bad_hash_123",
+    "comprehensive_test_hash_456",
     "comprehensive_known_bad_hash_789",
     "integration_test_hash_789"
   ],
   "packages": [
-    "com.fake.bank",
-    "com.fake.comprehensive",
+    "com.laughtter",
+    "com.prasesamor",
     "com.test.malicious",
-    "com.test.comprehensive"
+    "com.statetss",
+    "org.owasp.goatdroid.fourgoats",
+    "com.prasesfee",
+    "com.test.comprehensive",
+    "rhythm.retreat.absorb",
+    "org.owasp.goatdroid.herdfinancial",
+    "challenge.teamsik.aesdecryption",
+    "com.fake.bank",
+    "com.fake.comprehensive"
   ],
   "cert_fingerprints": [
     "comprehensive_cert_123",
     "test_cert_123"
   ],
-  "last_updated": 1757264361,
+  "last_updated": 1757397080,
   "version": "1.0"
 }

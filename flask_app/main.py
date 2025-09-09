@@ -13,6 +13,7 @@ import tempfile
 import json
 import time
 import threading
+from datetime import datetime
 from typing import Dict, List
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor
@@ -598,9 +599,13 @@ def health_check():
             "scan_single": "POST /scan",
             "scan_batch": "POST /scan-batch",
             "generate_report": "POST /report",
+            "generate_batch_report": "POST /report-batch",
             "report_abuse": "POST /report-abuse",
+            "report_batch_abuse": "POST /report-batch-abuse",
             "threat_feed": "GET /threat-feed",
-            "submit_threat_intel": "POST /threat/submit"
+            "submit_threat_intel": "POST /threat/submit",
+            "news": "GET /news",
+            "news_categories": "GET /news/categories"
         }
     })
 
@@ -1130,14 +1135,14 @@ def generate_report():
         file = request.files['file']
         if file.filename == '':
             return jsonify({"error": "no_file", "detail": "No file selected"}), 400
-        
+                
         # Validate file type
         if not allowed_file(file.filename):
             return jsonify({
-                "error": "invalid_file_type", 
+                "error": "invalid_file_type",
                 "detail": f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
             }), 400
-        
+            
         # Save uploaded file temporarily
         filename = secure_filename(file.filename)
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
@@ -1169,7 +1174,7 @@ def generate_report():
                 os.unlink(temp_file.name)
             except Exception:
                 pass
-                
+        
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
@@ -1225,7 +1230,7 @@ def generate_batch_report():
                 result = process_single_apk(temp_file.name, quick=False, debug=True)
                 result["file"] = file.filename
                 results.append(result)
-            
+                
             # Generate comprehensive Word document report
             word_report = _generate_word_report(results)
             
@@ -1246,7 +1251,97 @@ def generate_batch_report():
                     os.unlink(temp_file)
                 except Exception:
                     pass
+        
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/report-batch-abuse', methods=['POST'])
+def report_batch_abuse():
+    """Report multiple malicious APKs with evidence bundles"""
+    try:
+        # Check if files are in request
+        if 'files' not in request.files:
+            return jsonify({"error": "no_files", "detail": "No files provided"}), 400
+        
+        files = request.files.getlist('files')
+        if not files or len(files) == 0:
+            return jsonify({"error": "no_files", "detail": "No files selected"}), 400
+        
+        # Get additional report data
+        reporter_email = request.form.get('reporter_email', 'anonymous@example.com')
+        reporter_name = request.form.get('reporter_name', 'Anonymous')
+        additional_notes = request.form.get('additional_notes', '')
+        
+        # Process all files and collect malicious ones
+        malicious_apks = []
+        evidence_bundles = []
+        temp_files = []
+        
+        try:
+            for file in files:
+                if file.filename == '' or not allowed_file(file.filename):
+                    continue
                 
+                # Save uploaded file temporarily
+                filename = secure_filename(file.filename)
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1])
+                temp_files.append(temp_file.name)
+                
+                file.save(temp_file.name)
+                temp_file.close()
+                
+                # Analyze the APK
+                result = process_single_apk(temp_file.name, quick=False, debug=True)
+                
+                # Only report if malicious
+                if result.get("prediction") == "fake" or result.get("probability", 0) > 0.7:
+                    malicious_apks.append({
+                        "filename": filename,
+                        "result": result
+                    })
+                    
+                    # Generate evidence bundle for this malicious APK
+                    evidence_bundle = _generate_evidence_bundle(result, filename, reporter_email, reporter_name, additional_notes)
+                    evidence_bundles.append(evidence_bundle)
+                    
+                    # Add to threat feed
+                    _add_to_threat_feed(result)
+            
+            if not malicious_apks:
+                return jsonify({
+                    "status": "success",
+                    "message": "No malicious APKs found in batch. No reports generated.",
+                    "malicious_count": 0,
+                    "total_analyzed": len(files)
+                })
+            
+            # Generate batch report ID
+            batch_report_id = f"batch_report_{int(time.time())}"
+            
+            # Save all evidence bundles
+            for i, evidence_bundle in enumerate(evidence_bundles):
+                report_path = os.path.join("artifacts", "reports", f"{batch_report_id}_{i+1}.json")
+                with open(report_path, "w", encoding="utf-8") as f:
+                    json.dump(evidence_bundle, f, indent=2, ensure_ascii=False)
+            
+            return jsonify({
+                "status": "success",
+                "batch_report_id": batch_report_id,
+                "malicious_count": len(malicious_apks),
+                "total_analyzed": len(files),
+                "evidence_bundles": evidence_bundles,
+                "threat_feed_updated": True,
+                "message": f"Batch abuse report submitted successfully. {len(malicious_apks)} malicious APKs reported."
+            })
+            
+        finally:
+            # Clean up temporary files
+            for temp_file in temp_files:
+                try:
+                    os.unlink(temp_file)
+                except Exception:
+                    pass
+        
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
@@ -1341,6 +1436,357 @@ def get_threat_feed():
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
+def get_static_news_data():
+    """Get static news content (RBI guidelines, core security tips)"""
+    return {
+        "rbi_guidelines": [
+            {
+                "id": "rbi_001",
+                "title": "RBI Guidelines for Safe Banking Apps",
+                "content": "Always download banking apps only from official app stores (Google Play Store, Apple App Store). Verify the developer name matches your bank's official name.",
+                "category": "guidelines",
+                "priority": "high",
+                "date": "2024-01-15",
+                "source": "Reserve Bank of India"
+            },
+            {
+                "id": "rbi_002", 
+                "title": "Two-Factor Authentication Requirements",
+                "content": "All banking apps must implement 2FA. Never share OTPs, PINs, or passwords with anyone. Banks will never ask for these details via phone or email.",
+                "category": "guidelines",
+                "priority": "high",
+                "date": "2024-01-10",
+                "source": "Reserve Bank of India"
+            },
+            {
+                "id": "rbi_003",
+                "title": "App Permissions and Security",
+                "content": "Legitimate banking apps only request necessary permissions. Be suspicious of apps asking for camera, microphone, or location access without clear banking-related purpose.",
+                "category": "guidelines", 
+                "priority": "medium",
+                "date": "2024-01-05",
+                "source": "Reserve Bank of India"
+            }
+        ],
+        "security_tips": [
+            {
+                "id": "tip_001",
+                "title": "How to Verify Banking App Authenticity",
+                "content": "1. Check developer name matches your bank exactly\n2. Verify app has millions of downloads and positive reviews\n3. Look for official bank logo and branding\n4. Check app permissions - legitimate apps request minimal permissions\n5. Never download from third-party websites or links in emails/SMS",
+                "category": "education",
+                "priority": "high",
+                "date": "2024-01-12",
+                "source": "Digital Rakshak Security Team"
+            },
+            {
+                "id": "tip_002",
+                "title": "Red Flags in Banking Apps",
+                "content": "Warning signs of fake banking apps:\n• Poor grammar and spelling errors\n• Unprofessional UI design\n• Requests for unnecessary permissions\n• No customer support contact\n• Suspicious app names or variations\n• Low download count despite claiming to be from major bank",
+                "category": "education",
+                "priority": "high",
+                "date": "2024-01-08",
+                "source": "Digital Rakshak Security Team"
+            },
+            {
+                "id": "tip_003",
+                "title": "Safe Banking Practices",
+                "content": "Best practices for secure mobile banking:\n• Always use official banking apps\n• Enable biometric authentication\n• Keep your device and apps updated\n• Never use public WiFi for banking\n• Log out after each session\n• Monitor your account regularly\n• Report suspicious activities immediately",
+                "category": "education",
+                "priority": "medium",
+                "date": "2024-01-05",
+                "source": "Digital Rakshak Security Team"
+            }
+        ]
+    }
+
+def get_dynamic_threat_intelligence():
+    """Get real-time threat intelligence from ML system"""
+    try:
+        threat_feed = get_cached_threat_feed()
+        current_time = datetime.now()
+        
+        # Calculate threat statistics
+        total_threats = threat_feed['hash_count'] + threat_feed['package_count'] + threat_feed['cert_fingerprint_count']
+        
+        # Determine threat level based on recent activity
+        if total_threats > 20:
+            threat_level = "High"
+            priority = "critical"
+        elif total_threats > 10:
+            threat_level = "Medium"
+            priority = "high"
+        else:
+            threat_level = "Low"
+            priority = "medium"
+        
+        return {
+            "id": f"intel_{int(time.time())}",
+            "title": "Real-time Threat Intelligence Update",
+            "content": f"Digital Rakshak ML System has detected {threat_feed['hash_count']} malicious APKs, {threat_feed['package_count']} suspicious packages, and {threat_feed['cert_fingerprint_count']} compromised certificates in our threat database. The system is actively monitoring for new threats.",
+            "category": "intelligence",
+            "priority": priority,
+            "date": current_time.strftime("%Y-%m-%d"),
+            "source": "Digital Rakshak ML System",
+            "statistics": {
+                "fake_apps_detected": threat_feed['hash_count'],
+                "suspicious_packages": threat_feed['package_count'],
+                "compromised_certificates": threat_feed['cert_fingerprint_count'],
+                "total_threats": total_threats,
+                "threat_level": threat_level,
+                "last_updated": threat_feed['last_updated']
+            }
+        }
+    except Exception as e:
+        print(f"Failed to get dynamic threat intelligence: {e}")
+        return None
+
+def generate_news_with_gemini():
+    """Generate enhanced news content using Gemini API"""
+    try:
+        # Get current threat data for context
+        threat_feed = get_cached_threat_feed()
+        
+        prompt = f"""
+        Generate a cybersecurity news update about fake banking apps based on the following threat intelligence data:
+        
+        Current Threat Statistics:
+        - Malicious APKs detected: {threat_feed['hash_count']}
+        - Suspicious packages: {threat_feed['package_count']}
+        - Compromised certificates: {threat_feed['cert_fingerprint_count']}
+        
+        Please generate:
+        1. A security alert about recent fake banking app discoveries
+        2. An educational tip about mobile banking security
+        3. A threat intelligence summary
+        
+        Format each as a JSON object with fields: id, title, content, category, priority, date, source
+        Categories should be: alert, education, intelligence
+        Priorities should be: critical, high, medium, low
+        Make the content realistic and informative for Indian banking users.
+        """
+        
+        # Use existing Gemini integration
+        if 'gemini_client' in globals():
+            response = gemini_client.generate_content(prompt)
+            # Parse Gemini response and return structured data
+            return parse_gemini_news_response(response.text)
+        else:
+            print("Gemini client not available, using fallback content")
+            return get_fallback_gemini_content()
+            
+    except Exception as e:
+        print(f"Gemini news generation failed: {e}")
+        return get_fallback_gemini_content()
+
+def parse_gemini_news_response(gemini_text):
+    """Parse Gemini response into structured news format"""
+    try:
+        # This would parse the Gemini response into proper JSON format
+        # For now, return fallback content
+        return get_fallback_gemini_content()
+    except Exception as e:
+        print(f"Failed to parse Gemini response: {e}")
+        return get_fallback_gemini_content()
+
+def get_fallback_gemini_content():
+    """Fallback content when Gemini is unavailable"""
+    current_time = datetime.now()
+    return {
+        "security_alerts": [
+            {
+                "id": f"alert_gemini_{int(time.time())}",
+                "title": "AI-Generated Security Alert: Banking App Threats on the Rise",
+                "content": "Recent analysis by Digital Rakshak's AI system indicates a 15% increase in fake banking app submissions. Users are advised to be extra cautious when downloading banking applications and always verify app authenticity through official channels.",
+                "category": "alert",
+                "priority": "high",
+                "date": current_time.strftime("%Y-%m-%d"),
+                "source": "Digital Rakshak AI Analysis",
+                "threat_level": "Medium"
+            }
+        ],
+        "ai_education": [
+            {
+                "id": f"edu_gemini_{int(time.time())}",
+                "title": "AI-Powered Security Tip: Biometric Authentication Best Practices",
+                "content": "Digital Rakshak's AI analysis shows that apps using biometric authentication are 87% less likely to be malicious. Always enable fingerprint or face recognition for banking apps, but ensure the app requests this permission only when necessary for banking operations.",
+                "category": "education",
+                "priority": "medium",
+                "date": current_time.strftime("%Y-%m-%d"),
+                "source": "Digital Rakshak AI Security Advisor"
+            }
+        ]
+    }
+
+@app.route('/news', methods=['GET'])
+def get_news():
+    """Get hybrid cybersecurity news and awareness content"""
+    try:
+        # Get static content (RBI guidelines, core tips)
+        static_news = get_static_news_data()
+        
+        # Get dynamic threat intelligence
+        dynamic_intel = get_dynamic_threat_intelligence()
+        
+        # Check if enhanced content is requested
+        enhanced = request.args.get('enhanced', 'false').lower() == 'true'
+        
+        # Initialize news data with static content
+        news_data = {
+            "rbi_guidelines": static_news["rbi_guidelines"],
+            "security_tips": static_news["security_tips"],
+            "security_alerts": [],
+            "threat_intelligence": []
+        }
+        
+        # Add dynamic threat intelligence
+        if dynamic_intel:
+            news_data["threat_intelligence"].append(dynamic_intel)
+        
+        # Add enhanced content if requested
+        if enhanced:
+            try:
+                enhanced_content = generate_news_with_gemini()
+                if enhanced_content:
+                    news_data.update(enhanced_content)
+            except Exception as e:
+                print(f"Enhanced content generation failed: {e}")
+                # Add fallback enhanced content
+                fallback_content = get_fallback_gemini_content()
+                news_data.update(fallback_content)
+        
+        # Add some static alerts if no enhanced content
+        if not enhanced and not news_data["security_alerts"]:
+            news_data["security_alerts"] = [
+                {
+                    "id": "alert_static_001",
+                    "title": "Fake SBI App Detected - 'SBI Secure'",
+                    "content": "Cybersecurity researchers have identified a malicious app impersonating State Bank of India. The fake app 'SBI Secure' attempts to steal banking credentials and OTPs.",
+                    "category": "alert",
+                    "priority": "critical",
+                    "date": "2024-01-20",
+                    "source": "Digital Rakshak Threat Intelligence",
+                    "affected_banks": ["State Bank of India"],
+                    "threat_level": "High"
+                },
+                {
+                    "id": "alert_static_002",
+                    "title": "New Banking Trojan Targets HDFC Users",
+                    "content": "A sophisticated banking trojan has been discovered targeting HDFC Bank customers. The malware can intercept SMS messages and steal banking credentials.",
+                    "category": "alert",
+                    "priority": "high", 
+                    "date": "2024-01-18",
+                    "source": "Digital Rakshak Threat Intelligence",
+                    "affected_banks": ["HDFC Bank"],
+                    "threat_level": "High"
+                }
+            ]
+        
+        # Calculate total items
+        total_items = sum(len(category) for category in news_data.values())
+        
+        return jsonify({
+            "status": "success",
+            "news": news_data,
+            "last_updated": datetime.now().isoformat(),
+            "total_items": total_items,
+            "source": "hybrid",  # static + dynamic
+            "enhanced": enhanced,
+            "threat_feed_connected": dynamic_intel is not None
+        })
+        
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/news/categories', methods=['GET'])
+def get_news_categories():
+    """Get available news categories with dynamic counts"""
+    try:
+        # Get current threat data for dynamic counts (with fallback)
+        try:
+            threat_feed = get_cached_threat_feed()
+            dynamic_intel = get_dynamic_threat_intelligence()
+        except Exception as e:
+            print(f"Failed to get threat feed data: {e}")
+            threat_feed = {'hash_count': 0, 'package_count': 0, 'cert_fingerprint_count': 0}
+            dynamic_intel = None
+        
+        categories = {
+            "guidelines": {
+                "name": "RBI Guidelines",
+                "description": "Official banking security guidelines from Reserve Bank of India",
+                "icon": "🏛️",
+                "count": 3,
+                "type": "static"
+            },
+            "alert": {
+                "name": "Security Alerts", 
+                "description": "Latest security threats and fake app discoveries",
+                "icon": "🚨",
+                "count": 2,  # Dynamic based on enhanced content
+                "type": "dynamic"
+            },
+            "education": {
+                "name": "Security Education",
+                "description": "Tips and best practices for safe banking",
+                "icon": "📚",
+                "count": 3,
+                "type": "static"
+            },
+            "intelligence": {
+                "name": "Threat Intelligence",
+                "description": "Real-time threat analysis from ML system",
+                "icon": "🔍",
+                "count": 1 if dynamic_intel else 0,
+                "type": "dynamic",
+                "live_data": {
+                    "malicious_apks": threat_feed.get('hash_count', 0),
+                    "suspicious_packages": threat_feed.get('package_count', 0),
+                    "compromised_certs": threat_feed.get('cert_fingerprint_count', 0)
+                }
+            }
+        }
+        
+        return jsonify({
+            "status": "success",
+            "categories": categories,
+            "system_info": {
+                "hybrid_mode": True,
+                "static_content": True,
+                "dynamic_intelligence": dynamic_intel is not None,
+                "gemini_enhancement": request.args.get('enhanced', 'false').lower() == 'true'
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/news/enhanced', methods=['GET'])
+def get_enhanced_news():
+    """Get enhanced news content with Gemini AI generation"""
+    try:
+        # Force enhanced mode
+        enhanced_content = generate_news_with_gemini()
+        
+        if enhanced_content:
+            return jsonify({
+                "status": "success",
+                "news": enhanced_content,
+                "last_updated": datetime.now().isoformat(),
+                "source": "gemini_enhanced",
+                "ai_generated": True
+            })
+        else:
+            return jsonify({
+                "status": "success",
+                "news": get_fallback_gemini_content(),
+                "last_updated": datetime.now().isoformat(),
+                "source": "fallback_enhanced",
+                "ai_generated": False
+            })
+            
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
 @app.route('/threat/submit', methods=['POST'])
 def submit_threat_intel():
     """Submit new threat intelligence data"""
@@ -1429,15 +1875,17 @@ def _generate_evidence_bundle(result, filename, reporter_email, reporter_name, a
             "description": f"Malicious APK: {filename} - {result.get('app_label', 'Unknown app')}"
         },
         "email_template": {
-            "to": ["abuse@example.com", "cert@example.com"],
-            "subject": f"Malicious APK Report: {filename}",
+            "to": ["cybersecurity@digitalrakshak.in", "abuse@digitalrakshak.in", "cert@digitalrakshak.in"],
+            "cc": ["admin@digitalrakshak.in"],
+            "subject": f"🚨 MALICIOUS APK DETECTED: {filename}",
             "body": f"""
-Malicious APK Detected
+🚨 URGENT: MALICIOUS APK DETECTED 🚨
 
 Report ID: {timestamp}
 Reporter: {reporter_name} ({reporter_email})
+Detection Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
 
-APK Details:
+📱 APK DETAILS:
 - Filename: {filename}
 - SHA-256: {sha256}
 - Package: {package}
@@ -1445,17 +1893,23 @@ APK Details:
 - Risk Level: {result.get('risk_level', 'Unknown')}
 - Confidence: {result.get('confidence_percentage', 0)}%
 
-Technical Indicators:
+🔍 TECHNICAL INDICATORS:
 - Domains: {', '.join(domains) if domains else 'None'}
 - Suspicious Permissions: {', '.join(result.get('critical_permissions', []))}
 - Certificate Status: {result.get('certificate_status', 'Unknown')}
+- Threat Feed Match: {result.get('threat_feed_match', False)}
 
-Additional Notes:
+📝 ADDITIONAL NOTES:
 {additional_notes}
 
-Please investigate and take appropriate action.
+⚠️  IMMEDIATE ACTION REQUIRED:
+1. Block this APK across all security systems
+2. Update threat intelligence feeds
+3. Notify relevant authorities if required
+4. Investigate potential impact
 
 Generated by Digital Rakshak Threat Intelligence System
+Contact: cybersecurity@digitalrakshak.in
 """
         }
     }

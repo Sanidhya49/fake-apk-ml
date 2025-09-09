@@ -69,12 +69,12 @@ This project addresses the critical cybersecurity challenge of **"Detecting Fake
    ```
 
 3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
 4. **Set environment variables**
-   ```bash
+```bash
    export GEMINI_API_KEY="your_api_key_here"
    export ML_FAKE_THRESHOLD="0.385"
    ```
@@ -238,7 +238,7 @@ print('Extraction successful:', list(result.keys()))
    ```
 
 2. **Deploy to Cloud Run**
-   ```bash
+```bash
    gcloud run deploy fake-apk-detector \
      --image gcr.io/your-project/fake-apk-detector \
      --platform managed \
