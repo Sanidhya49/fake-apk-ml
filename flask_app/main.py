@@ -1436,6 +1436,137 @@ def get_threat_feed():
     except Exception as e:
         return jsonify({"error": "internal_error", "detail": str(e)}), 500
 
+@app.route('/admin/reports', methods=['GET'])
+def get_admin_reports():
+    """Get all abuse reports for admin dashboard"""
+    try:
+        # Ensure reports directory exists
+        reports_dir = os.path.join("artifacts", "reports")
+        if not os.path.exists(reports_dir):
+            return jsonify({"reports": [], "stats": {"total": 0, "batch": 0, "single": 0}})
+        
+        # Get all report files
+        report_files = []
+        for filename in os.listdir(reports_dir):
+            if filename.endswith('.json'):
+                file_path = os.path.join(reports_dir, filename)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        report_data = json.load(f)
+                        
+                    # Add file metadata
+                    report_data['file_metadata'] = {
+                        'filename': filename,
+                        'created_at': os.path.getctime(file_path),
+                        'modified_at': os.path.getmtime(file_path),
+                        'size': os.path.getsize(file_path)
+                    }
+                    
+                    # Determine report type
+                    if filename.startswith('batch_report_'):
+                        report_data['report_type'] = 'batch'
+                    else:
+                        report_data['report_type'] = 'single'
+                    
+                    report_files.append(report_data)
+                    
+                except (json.JSONDecodeError, IOError) as e:
+                    print(f"Error reading report file {filename}: {e}")
+                    continue
+        
+        # Sort by timestamp (newest first)
+        report_files.sort(key=lambda x: x.get('report_metadata', {}).get('timestamp', 0), reverse=True)
+        
+        # Calculate statistics
+        stats = {
+            'total': len(report_files),
+            'batch': len([r for r in report_files if r.get('report_type') == 'batch']),
+            'single': len([r for r in report_files if r.get('report_type') == 'single']),
+            'high_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Red']),
+            'medium_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Orange']),
+            'low_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Yellow'])
+        }
+        
+        # Get pagination parameters
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_reports = report_files[start_idx:end_idx]
+        
+        return jsonify({
+            "reports": paginated_reports,
+            "stats": stats,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": len(report_files),
+                "pages": (len(report_files) + per_page - 1) // per_page
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/admin/reports/<report_id>', methods=['GET'])
+def get_single_report(report_id):
+    """Get a specific report by ID"""
+    try:
+        reports_dir = os.path.join("artifacts", "reports")
+        
+        # Try to find the report file
+        report_file = None
+        for filename in os.listdir(reports_dir):
+            if filename.startswith(report_id) and filename.endswith('.json'):
+                report_file = filename
+                break
+        
+        if not report_file:
+            return jsonify({"error": "report_not_found", "detail": f"Report {report_id} not found"}), 404
+        
+        file_path = os.path.join(reports_dir, report_file)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            report_data = json.load(f)
+        
+        # Add file metadata
+        report_data['file_metadata'] = {
+            'filename': report_file,
+            'created_at': os.path.getctime(file_path),
+            'modified_at': os.path.getmtime(file_path),
+            'size': os.path.getsize(file_path)
+        }
+        
+        return jsonify(report_data)
+        
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
+@app.route('/admin/reports/<report_id>', methods=['DELETE'])
+def delete_report(report_id):
+    """Delete a specific report"""
+    try:
+        reports_dir = os.path.join("artifacts", "reports")
+        
+        # Try to find the report file
+        report_file = None
+        for filename in os.listdir(reports_dir):
+            if filename.startswith(report_id) and filename.endswith('.json'):
+                report_file = filename
+                break
+        
+        if not report_file:
+            return jsonify({"error": "report_not_found", "detail": f"Report {report_id} not found"}), 404
+        
+        file_path = os.path.join(reports_dir, report_file)
+        os.remove(file_path)
+        
+        return jsonify({"status": "success", "message": f"Report {report_id} deleted successfully"})
+        
+    except Exception as e:
+        return jsonify({"error": "internal_error", "detail": str(e)}), 500
+
 def get_static_news_data():
     """Get static news content (RBI guidelines, core security tips)"""
     return {
