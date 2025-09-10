@@ -10,6 +10,7 @@ Your application now combines **3 powerful detection methods** for maximum secur
 2. **🛡️ Threat Intelligence Feed** - Known malicious APK database  
 3. **🌐 VirusTotal Integration** - 70+ antivirus engines
 
+
 ---
 
 ## 🆕 **New Features Added**
