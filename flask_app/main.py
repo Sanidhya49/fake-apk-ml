@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ml import static_extract
 from ml.utils import ensure_dirs, load_model, vectorize_feature_dict, get_sha256, load_bank_whitelist
 from rapidfuzz import fuzz
+import requests
 
 # Load .env if present
 try:
@@ -36,6 +37,10 @@ try:
     load_dotenv(override=True)
 except Exception:
     pass
+
+# VirusTotal API Configuration
+VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
+VIRUSTOTAL_BASE_URL = 'https://www.virustotal.com/api/v3'
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -374,6 +379,15 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
         if is_official and prob <= official_override_cap:
             pred = 0
         
+        # VirusTotal scan (if API key is available)
+        virustotal_result = {"available": False, "error": "API key not configured"}
+        if VIRUSTOTAL_API_KEY:
+            try:
+                virustotal_result = scan_file_with_virustotal(file_path)
+            except Exception as e:
+                print(f"⚠️  VirusTotal scan failed: {e}")
+                virustotal_result = {"available": False, "error": str(e)}
+        
         # Threat feed override (highest priority)
         if threat_check["match"]:
             pred = 1  # Force fake prediction
@@ -492,6 +506,7 @@ def process_single_apk(file_path: str, quick: bool = False, debug: bool = False)
             "total_permissions": len(ext.get("permissions", [])),
             "exported_components": len(ext.get("exported", [])),
             "threat_feed_match": threat_check,
+            "virustotal_result": virustotal_result,
         }
         
         # Add critical security features
@@ -1139,8 +1154,8 @@ def generate_report():
         # Validate file type
         if not allowed_file(file.filename):
             return jsonify({
-                "error": "invalid_file_type",
-                "detail": f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
+                    "error": "invalid_file_type",
+                    "detail": f"Invalid file type. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
             }), 400
             
         # Save uploaded file temporarily
@@ -1483,8 +1498,8 @@ def get_admin_reports():
             'batch': len([r for r in report_files if r.get('report_type') == 'batch']),
             'single': len([r for r in report_files if r.get('report_type') == 'single']),
             'high_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Red']),
-            'medium_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Orange']),
-            'low_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Yellow'])
+            'medium_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Amber']),
+            'low_risk': len([r for r in report_files if r.get('apk_analysis', {}).get('risk_level') == 'Green'])
         }
         
         # Get pagination parameters
@@ -1577,7 +1592,7 @@ def get_static_news_data():
                 "content": "Always download banking apps only from official app stores (Google Play Store, Apple App Store). Verify the developer name matches your bank's official name.",
                 "category": "guidelines",
                 "priority": "high",
-                "date": "2024-01-15",
+                "date": "2025-01-15",
                 "source": "Reserve Bank of India"
             },
             {
@@ -1586,7 +1601,7 @@ def get_static_news_data():
                 "content": "All banking apps must implement 2FA. Never share OTPs, PINs, or passwords with anyone. Banks will never ask for these details via phone or email.",
                 "category": "guidelines",
                 "priority": "high",
-                "date": "2024-01-10",
+                "date": "2025-01-10",
                 "source": "Reserve Bank of India"
             },
             {
@@ -1595,7 +1610,7 @@ def get_static_news_data():
                 "content": "Legitimate banking apps only request necessary permissions. Be suspicious of apps asking for camera, microphone, or location access without clear banking-related purpose.",
                 "category": "guidelines", 
                 "priority": "medium",
-                "date": "2024-01-05",
+                "date": "2025-01-05",
                 "source": "Reserve Bank of India"
             }
         ],
@@ -1606,7 +1621,7 @@ def get_static_news_data():
                 "content": "1. Check developer name matches your bank exactly\n2. Verify app has millions of downloads and positive reviews\n3. Look for official bank logo and branding\n4. Check app permissions - legitimate apps request minimal permissions\n5. Never download from third-party websites or links in emails/SMS",
                 "category": "education",
                 "priority": "high",
-                "date": "2024-01-12",
+                "date": "2025-01-12",
                 "source": "Digital Rakshak Security Team"
             },
             {
@@ -1615,7 +1630,7 @@ def get_static_news_data():
                 "content": "Warning signs of fake banking apps:\n• Poor grammar and spelling errors\n• Unprofessional UI design\n• Requests for unnecessary permissions\n• No customer support contact\n• Suspicious app names or variations\n• Low download count despite claiming to be from major bank",
                 "category": "education",
                 "priority": "high",
-                "date": "2024-01-08",
+                "date": "2025-01-08",
                 "source": "Digital Rakshak Security Team"
             },
             {
@@ -1624,7 +1639,7 @@ def get_static_news_data():
                 "content": "Best practices for secure mobile banking:\n• Always use official banking apps\n• Enable biometric authentication\n• Keep your device and apps updated\n• Never use public WiFi for banking\n• Log out after each session\n• Monitor your account regularly\n• Report suspicious activities immediately",
                 "category": "education",
                 "priority": "medium",
-                "date": "2024-01-05",
+                "date": "2025-01-05",
                 "source": "Digital Rakshak Security Team"
             }
         ]
@@ -1790,24 +1805,24 @@ def get_news():
             news_data["security_alerts"] = [
                 {
                     "id": "alert_static_001",
-                    "title": "Fake SBI App Detected - 'SBI Secure'",
-                    "content": "Cybersecurity researchers have identified a malicious app impersonating State Bank of India. The fake app 'SBI Secure' attempts to steal banking credentials and OTPs.",
+                    "title": "Fake ICICI Bank App 'ICICI Direct Pro' Detected",
+                    "content": "A sophisticated fake ICICI Bank app has been discovered on third-party app stores. The malicious app 'ICICI Direct Pro' uses advanced social engineering to steal user credentials and financial data.",
                     "category": "alert",
                     "priority": "critical",
-                    "date": "2024-01-20",
+                    "date": "2025-01-20",
                     "source": "Digital Rakshak Threat Intelligence",
-                    "affected_banks": ["State Bank of India"],
+                    "affected_banks": ["ICICI Bank"],
                     "threat_level": "High"
                 },
                 {
                     "id": "alert_static_002",
-                    "title": "New Banking Trojan Targets HDFC Users",
-                    "content": "A sophisticated banking trojan has been discovered targeting HDFC Bank customers. The malware can intercept SMS messages and steal banking credentials.",
+                    "title": "New Banking Malware Targets UPI Transactions",
+                    "content": "A new banking malware specifically designed to intercept UPI transactions has been detected. The malware can modify UPI payment details and redirect funds to attacker-controlled accounts.",
                     "category": "alert",
                     "priority": "high", 
-                    "date": "2024-01-18",
+                    "date": "2025-01-18",
                     "source": "Digital Rakshak Threat Intelligence",
-                    "affected_banks": ["HDFC Bank"],
+                    "affected_banks": ["All UPI-enabled banks"],
                     "threat_level": "High"
                 }
             ]
@@ -1818,7 +1833,7 @@ def get_news():
         return jsonify({
             "status": "success",
             "news": news_data,
-            "last_updated": datetime.now().isoformat(),
+            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "total_items": total_items,
             "source": "hybrid",  # static + dynamic
             "enhanced": enhanced,
@@ -1902,7 +1917,7 @@ def get_enhanced_news():
             return jsonify({
                 "status": "success",
                 "news": enhanced_content,
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "source": "gemini_enhanced",
                 "ai_generated": True
             })
@@ -1910,7 +1925,7 @@ def get_enhanced_news():
             return jsonify({
                 "status": "success",
                 "news": get_fallback_gemini_content(),
-                "last_updated": datetime.now().isoformat(),
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "source": "fallback_enhanced",
                 "ai_generated": False
             })
@@ -4319,7 +4334,296 @@ def _generate_html_batch_report(results: List[Dict]) -> str:
 def test_endpoint():
     return jsonify({"message": "Test endpoint is working!"})
 
+# ==================== VIRUSTOTAL API ENDPOINTS ====================
 
+@app.route('/virustotal/scan', methods=['POST'])
+def virustotal_scan():
+    """Scan APK with VirusTotal by SHA256 hash"""
+    try:
+        data = request.get_json()
+        sha256 = data.get('sha256')
+        
+        if not sha256:
+            return jsonify({"error": "SHA256 hash required"}), 400
+        
+        if not VIRUSTOTAL_API_KEY:
+            return jsonify({"error": "VirusTotal API key not configured"}), 503
+        
+        headers = {
+            'x-apikey': VIRUSTOTAL_API_KEY,
+            'accept': 'application/json'
+        }
+        
+        # Check existing report
+        report_url = f"{VIRUSTOTAL_BASE_URL}/files/{sha256}"
+        response = requests.get(report_url, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                "available": True,
+                "cached": True,
+                "sha256": sha256,
+                "scan_results": data.get('data', {}).get('attributes', {}),
+                "last_analysis_stats": data.get('data', {}).get('attributes', {}).get('last_analysis_stats', {}),
+                "reputation": data.get('data', {}).get('attributes', {}).get('reputation', 0)
+            })
+        elif response.status_code == 404:
+            return jsonify({
+                "available": False,
+                "cached": False,
+                "message": "File not found in VirusTotal database"
+            })
+        else:
+            return jsonify({"error": f"VirusTotal API error: {response.status_code}"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": f"VirusTotal scan failed: {str(e)}"}), 500
+
+@app.route('/virustotal/report/<sha256>', methods=['GET'])
+def virustotal_report(sha256):
+    """Get VirusTotal report for a specific SHA256 hash"""
+    try:
+        if not VIRUSTOTAL_API_KEY:
+            return jsonify({"error": "VirusTotal API key not configured"}), 503
+        
+        headers = {
+            'x-apikey': VIRUSTOTAL_API_KEY,
+            'accept': 'application/json'
+        }
+        
+        report_url = f"{VIRUSTOTAL_BASE_URL}/files/{sha256}"
+        response = requests.get(report_url, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify({
+                "available": True,
+                "sha256": sha256,
+                "scan_results": data.get('data', {}).get('attributes', {}),
+                "last_analysis_stats": data.get('data', {}).get('attributes', {}).get('last_analysis_stats', {}),
+                "reputation": data.get('data', {}).get('attributes', {}).get('reputation', 0)
+            })
+        elif response.status_code == 404:
+            return jsonify({
+                "available": False,
+                "message": "File not found in VirusTotal database"
+            }), 404
+        else:
+            return jsonify({"error": f"VirusTotal API error: {response.status_code}"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": f"VirusTotal report fetch failed: {str(e)}"}), 500
+
+@app.route('/virustotal/upload', methods=['POST'])
+def virustotal_upload():
+    """Upload APK file to VirusTotal for scanning"""
+    try:
+        if not VIRUSTOTAL_API_KEY:
+            return jsonify({"error": "VirusTotal API key not configured"}), 503
+        
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        
+        # Save file temporarily
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.apk')
+        file.save(temp_file.name)
+        temp_file.close()
+        
+        try:
+            # Upload to VirusTotal
+            headers = {
+                'x-apikey': VIRUSTOTAL_API_KEY
+            }
+            
+            with open(temp_file.name, 'rb') as f:
+                files = {'file': f}
+                upload_url = f"{VIRUSTOTAL_BASE_URL}/files"
+                response = requests.post(upload_url, headers=headers, files=files, timeout=60)
+            
+            if response.status_code == 200:
+                data = response.json()
+                return jsonify({
+                    "available": True,
+                    "upload_successful": True,
+                    "analysis_id": data.get('data', {}).get('id'),
+                    "message": "File uploaded successfully. Analysis in progress."
+                })
+            else:
+                return jsonify({"error": f"Upload failed: {response.status_code}"}), 500
+                
+        finally:
+            # Clean up temporary file
+            os.unlink(temp_file.name)
+            
+    except Exception as e:
+        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
+
+# ==================== VIRUSTOTAL INTEGRATION FUNCTIONS ====================
+
+def scan_file_with_virustotal(file_path):
+    """Scan a file with VirusTotal API"""
+    if not VIRUSTOTAL_API_KEY:
+        return {"error": "VirusTotal API key not configured", "available": False}
+    
+    try:
+        # Calculate SHA256 hash
+        sha256 = get_sha256(file_path)
+        
+        # First, check if file is already known to VirusTotal
+        headers = {
+            'x-apikey': VIRUSTOTAL_API_KEY,
+            'accept': 'application/json'
+        }
+        
+        # Check existing report
+        report_url = f"{VIRUSTOTAL_BASE_URL}/files/{sha256}"
+        response = requests.get(report_url, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            # File already exists in VirusTotal
+            data = response.json()
+            return {
+                "available": True,
+                "cached": True,
+                "sha256": sha256,
+                "scan_results": data.get('data', {}).get('attributes', {}),
+                "last_analysis_stats": data.get('data', {}).get('attributes', {}).get('last_analysis_stats', {}),
+                "reputation": data.get('data', {}).get('attributes', {}).get('reputation', 0)
+            }
+        elif response.status_code == 404:
+            # File not in VirusTotal, upload it
+            return upload_file_to_virustotal(file_path)
+        else:
+            return {"error": f"VirusTotal API error: {response.status_code}", "available": False}
+            
+    except Exception as e:
+        return {"error": f"VirusTotal scan failed: {str(e)}", "available": False}
+
+def upload_file_to_virustotal(file_path):
+    """Upload a file to VirusTotal for scanning"""
+    if not VIRUSTOTAL_API_KEY:
+        return {"error": "VirusTotal API key not configured", "available": False}
+    
+    try:
+        headers = {
+            'x-apikey': VIRUSTOTAL_API_KEY
+        }
+        
+        with open(file_path, 'rb') as f:
+            files = {'file': f}
+            upload_url = f"{VIRUSTOTAL_BASE_URL}/files"
+            response = requests.post(upload_url, headers=headers, files=files, timeout=60)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "available": True,
+                "cached": False,
+                "upload_successful": True,
+                "analysis_id": data.get('data', {}).get('id'),
+                "message": "File uploaded successfully. Analysis in progress."
+            }
+        else:
+            return {"error": f"Upload failed: {response.status_code}", "available": False}
+            
+    except Exception as e:
+        return {"error": f"Upload failed: {str(e)}", "available": False}
+
+def get_virustotal_analysis(analysis_id):
+    """Get VirusTotal analysis results by analysis ID"""
+    if not VIRUSTOTAL_API_KEY:
+        return {"error": "VirusTotal API key not configured", "available": False}
+    
+    try:
+        headers = {
+            'x-apikey': VIRUSTOTAL_API_KEY,
+            'accept': 'application/json'
+        }
+        
+        analysis_url = f"{VIRUSTOTAL_BASE_URL}/analyses/{analysis_id}"
+        response = requests.get(analysis_url, headers=headers, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "available": True,
+                "analysis_data": data.get('data', {}),
+                "status": data.get('data', {}).get('attributes', {}).get('status')
+            }
+        else:
+            return {"error": f"Analysis fetch failed: {response.status_code}", "available": False}
+            
+    except Exception as e:
+        return {"error": f"Analysis fetch failed: {str(e)}", "available": False}
+
+def combine_detection_results(ml_result, virustotal_result, threat_feed_result):
+    """Combine ML, VirusTotal, and Threat Feed results for final decision"""
+    
+    # Base ML prediction
+    ml_prediction = ml_result.get('prediction', 0)
+    ml_probability = ml_result.get('probability', 0.0)
+    
+    # Threat feed override (highest priority)
+    if threat_feed_result.get('match', False):
+        return {
+            "final_prediction": 1,
+            "final_probability": 0.95,
+            "confidence": "very_high",
+            "detection_methods": ["threat_feed", "ml"],
+            "reasoning": "Known malicious APK in threat intelligence feed",
+            "ml_result": ml_result,
+            "virustotal_result": virustotal_result,
+            "threat_feed_result": threat_feed_result
+        }
+    
+    # VirusTotal analysis
+    vt_available = virustotal_result.get('available', False)
+    vt_malicious = 0
+    vt_suspicious = 0
+    
+    if vt_available and 'scan_results' in virustotal_result:
+        last_analysis_stats = virustotal_result.get('scan_results', {}).get('last_analysis_stats', {})
+        vt_malicious = last_analysis_stats.get('malicious', 0)
+        vt_suspicious = last_analysis_stats.get('suspicious', 0)
+    
+    # Combined decision logic
+    if vt_malicious >= 5:  # 5+ engines detect as malicious
+        final_prediction = 1
+        final_probability = min(0.95, 0.7 + (vt_malicious * 0.05))
+        confidence = "very_high"
+        reasoning = f"VirusTotal: {vt_malicious} engines detected as malicious"
+    elif vt_malicious >= 2:  # 2-4 engines detect as malicious
+        final_prediction = 1
+        final_probability = min(0.85, 0.6 + (vt_malicious * 0.05))
+        confidence = "high"
+        reasoning = f"VirusTotal: {vt_malicious} engines detected as malicious"
+    elif vt_suspicious >= 3:  # 3+ engines detect as suspicious
+        final_prediction = 1 if ml_prediction == 1 else 0
+        final_probability = max(ml_probability, 0.6)
+        confidence = "medium"
+        reasoning = f"VirusTotal: {vt_suspicious} engines detected as suspicious"
+    else:
+        # Rely on ML prediction
+        final_prediction = ml_prediction
+        final_probability = ml_probability
+        confidence = "medium" if ml_probability > 0.7 else "low"
+        reasoning = "ML-based detection"
+    
+    return {
+        "final_prediction": final_prediction,
+        "final_probability": final_probability,
+        "confidence": confidence,
+        "detection_methods": ["ml", "virustotal"] if vt_available else ["ml"],
+        "reasoning": reasoning,
+        "ml_result": ml_result,
+        "virustotal_result": virustotal_result,
+        "threat_feed_result": threat_feed_result
+    }
 
 if __name__ == '__main__':
     # Make sure required directories exist
@@ -4373,10 +4677,10 @@ if __name__ == '__main__':
         print("Available endpoints:")
         print("  GET  /           - Health check")
         print("  POST /scan       - Scan single APK")
-        print("  POST /scan-batch - Scan multiple APKs")
-        print("  POST /report     - Generate detailed report")
-        
-        app.run(host=host, port=port, debug=debug, threaded=True)
+    print("  POST /scan-batch - Scan multiple APKs")
+    print("  POST /report     - Generate detailed report")
+    
+    app.run(host=host, port=port, debug=debug, threaded=True)
         
         
         #sujal bhai

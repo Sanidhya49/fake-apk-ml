@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster, toast } from "react-hot-toast";
 import { HiExclamation, HiDocument } from "react-icons/hi";
 import useAppStore from "./store/useAppStore";
@@ -19,7 +20,12 @@ import FAQSection from "./components/sections/FAQSection";
 import AboutSection from "./components/sections/AboutSection";
 import VideoDemoSection from "./components/sections/VideoDemoSection";
 
-const App = () => {
+// Admin Components
+import AdminLogin from "./pages/admin/AdminLogin";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+
+// Main App Component (Homepage)
+const MainApp = () => {
   const {
     analysisResults,
     isAnalyzing,
@@ -113,6 +119,19 @@ const App = () => {
       {/* Footer */}
       <Footer />
     </div>
+  );
+};
+
+// Main App with Routing
+const App = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<MainApp />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 

@@ -113,7 +113,16 @@ const NewsSection = () => {
       return allItems;
     }
     
-    return allItems.filter(item => item.category === selectedCategory);
+    // Map category keys to actual category names
+    const categoryMap = {
+      "alert": "security_alerts",
+      "education": "security_tips", 
+      "guidelines": "rbi_guidelines",
+      "intelligence": "threat_intelligence"
+    };
+    
+    const mappedCategory = categoryMap[selectedCategory] || selectedCategory;
+    return allItems.filter(item => item.category === mappedCategory);
   };
 
   if (isLoading) {

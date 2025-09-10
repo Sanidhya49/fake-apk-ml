@@ -163,15 +163,29 @@ const useAppStore = create((set, get) => ({
       const getRiskLevel = (risk) => {
         switch (risk?.toLowerCase()) {
           case "red":
-            return "High Risk";
-          case "yellow":
-            return "Medium Risk";
+            return "Red";
+          case "amber":
+            return "Amber";
           case "green":
-            return "Low Risk";
+            return "Green";
           default:
-            return result.prediction === "fake" ? "High Risk" : "Low Risk";
+            return result.prediction === "fake" ? "Red" : "Green";
         }
       };
+
+      // Calculate confidence properly for both fake and legitimate predictions
+      const calculateConfidence = (prediction, probability) => {
+        if (prediction === "fake") {
+          // For fake predictions, use probability directly (0.8 = 80% confidence)
+          return Math.round((probability || 0) * 100);
+        } else {
+          // For legitimate predictions, use (1 - probability) to get confidence
+          // If probability is 0.1 (10% chance of being fake), confidence is 90%
+          return Math.round((1 - (probability || 0)) * 100);
+        }
+      };
+
+      const confidence = calculateConfidence(result.prediction, result.probability);
 
       const processedResults = {
         prediction: result.prediction,
@@ -181,7 +195,7 @@ const useAppStore = create((set, get) => ({
         riskLevel: getRiskLevel(result.risk),
         riskScore: Math.round((result.probability || 0) * 100),
         verdict: result.prediction === "fake" ? "dangerous" : "safe",
-        confidence: Math.round((result.probability || 0) * 100),
+        confidence: confidence,
 
         // Enhanced API response fields
         permissions_analysis: result.permissions_analysis,
@@ -192,6 +206,7 @@ const useAppStore = create((set, get) => ({
         performance_metrics: result.performance_metrics,
         top_shap: result.top_shap,
         batch_summary: result.batch_summary, // For batch processing
+        virustotal_result: result.virustotal_result, // VirusTotal integration
 
         // Map backend features to frontend display format
         summary: {
@@ -203,7 +218,7 @@ const useAppStore = create((set, get) => ({
               ? "Potentially Malicious"
               : "Appears Safe",
           riskLevel: getRiskLevel(result.risk),
-          confidence: Math.round((result.probability || 0) * 100),
+          confidence: confidence,
         },
 
         // Security breakdown based on feature vector

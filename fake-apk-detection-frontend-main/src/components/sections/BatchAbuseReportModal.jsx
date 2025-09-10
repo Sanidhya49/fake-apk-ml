@@ -139,7 +139,10 @@ const BatchAbuseReportModal = ({ isOpen, onClose, maliciousFiles, batchResults }
                           {result.file} - {result.app_label || 'Unknown App'}
                         </span>
                         <span className="px-2 py-1 bg-danger-100 dark:bg-danger-900/40 text-danger-700 dark:text-danger-300 rounded text-xs font-medium">
-                          {Math.round(result.probability * 100)}% confidence
+                          {result.prediction === "fake" 
+                            ? Math.round(result.probability * 100)
+                            : Math.round((1 - result.probability) * 100)
+                          }% confidence
                         </span>
                       </div>
                     ))}

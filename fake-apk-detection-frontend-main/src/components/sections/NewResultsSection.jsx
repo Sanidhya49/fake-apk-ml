@@ -211,7 +211,18 @@ const NewResultsSection = () => {
   };
 
   // Convert confidence percentage for display
-  const confidenceScore = Math.round((probability || 0) * 100);
+  const calculateConfidence = (prediction, probability) => {
+    if (prediction === "fake") {
+      // For fake predictions, use probability directly (0.8 = 80% confidence)
+      return Math.round((probability || 0) * 100);
+    } else {
+      // For legitimate predictions, use (1 - probability) to get confidence
+      // If probability is 0.1 (10% chance of being fake), confidence is 90%
+      return Math.round((1 - (probability || 0)) * 100);
+    }
+  };
+  
+  const confidenceScore = calculateConfidence(prediction, probability);
 
   return (
     <section
@@ -315,7 +326,7 @@ const NewResultsSection = () => {
               <div className="max-w-md mx-auto mb-8">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-400">
-                    Risk Level: {risk || "Unknown"}
+                    Risk Level: {riskLevel || "Unknown"}
                   </span>
                   <span
                     className={`text-2xl font-bold ${getRiskTextColor(
@@ -444,13 +455,19 @@ const NewResultsSection = () => {
         {/* Security Indicators */}
         {security_indicators && (
           <div
+            id="security-indicators"
             className="mb-12 animate-fade-up"
             style={{ animationDelay: "1000ms" }}
           >
             <div className="p-6 md:p-8 bg-gray-900 rounded-2xl border border-gray-700/50 shadow-lg">
               <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
-                <BsShieldFillCheck className="w-6 h-6 text-primary-400 mr-3" />
+                <HiShieldCheck className="w-6 h-6 text-blue-600 dark:text-blue-400 mr-3" />
                 Security Indicators
+                <div className="ml-auto">
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    ML Analysis
+                  </span>
+                </div>
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -466,23 +483,51 @@ const NewResultsSection = () => {
                         ? "Yes"
                         : "No"
                       : value;
-                    const colorClass = isBoolean
-                      ? value === isGoodIndicator
-                        ? "text-success-600 dark:text-success-400"
-                        : "text-danger-600 dark:text-danger-400"
-                      : "text-gray-700 dark:text-gray-300";
+                    
+                    // Enhanced color scheme for better visual consistency
+                    const getColorScheme = (key, value, isBoolean) => {
+                      if (isBoolean) {
+                        if (value === isGoodIndicator) {
+                          return {
+                            bg: "bg-gray-800/50",
+                            border: "border-green-500/30",
+                            text: "text-green-400",
+                            icon: "text-green-500"
+                          };
+                        } else {
+                          return {
+                            bg: "bg-gray-800/50",
+                            border: "border-red-500/30", 
+                            text: "text-red-400",
+                            icon: "text-red-500"
+                          };
+                        }
+                      } else {
+                        return {
+                          bg: "bg-gray-800/50",
+                          border: "border-gray-600/30",
+                          text: "text-gray-300",
+                          icon: "text-gray-500"
+                        };
+                      }
+                    };
+
+                    const colors = getColorScheme(key, value, isBoolean);
 
                     return (
                       <div
                         key={idx}
-                        className="p-4 rounded-lg bg-gray-800/50"
+                        className={`p-4 rounded-lg ${colors.bg} border ${colors.border}`}
                       >
-                        <div className="text-sm font-medium text-gray-400 mb-1">
-                          {key
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, (l) => l.toUpperCase())}
+                        <div className="flex items-center mb-2">
+                          <div className={`w-2 h-2 rounded-full ${colors.icon.replace('text-', 'bg-').replace('/500', '/500')} mr-2`}></div>
+                          <div className="text-sm font-medium text-gray-400">
+                            {key
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </div>
                         </div>
-                        <div className={`text-lg font-bold ${colorClass}`}>
+                        <div className={`text-xl font-bold ${colors.text}`}>
                           {displayValue}
                         </div>
                       </div>
@@ -551,6 +596,100 @@ const NewResultsSection = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* VirusTotal Analysis Results */}
+        {analysisResults.virustotal_result && (
+          <div
+            id="virustotal-analysis"
+            className="mb-12 animate-fade-up"
+            style={{ animationDelay: "1000ms" }}
+          >
+            <div className="p-6 md:p-8 bg-gray-900 rounded-2xl border border-gray-700/50 shadow-lg">
+              <h3 className="text-2xl font-bold text-white mb-6 flex items-center">
+                <HiShieldCheck className="w-6 h-6 text-green-600 dark:text-green-400 mr-3" />
+                VirusTotal Analysis
+                <div className="ml-auto">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    analysisResults.virustotal_result.available 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {analysisResults.virustotal_result.available ? 'Available' : 'Unavailable'}
+                  </span>
+                </div>
+              </h3>
+              
+              {analysisResults.virustotal_result.available ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-red-500/30">
+                      <div className="flex items-center mb-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                        <div className="text-sm text-gray-400">Detection Engines</div>
+                      </div>
+                      <div className="text-3xl font-bold text-red-400">
+                        {analysisResults.virustotal_result.last_analysis_stats?.malicious || 0}
+                      </div>
+                      <div className="text-sm text-red-300">Malicious</div>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-yellow-500/30">
+                      <div className="flex items-center mb-2">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
+                        <div className="text-sm text-gray-400">Suspicious</div>
+                      </div>
+                      <div className="text-3xl font-bold text-yellow-400">
+                        {analysisResults.virustotal_result.last_analysis_stats?.suspicious || 0}
+                      </div>
+                      <div className="text-sm text-yellow-300">Suspicious</div>
+                    </div>
+                    <div className="bg-gray-800/50 rounded-lg p-4 border border-green-500/30">
+                      <div className="flex items-center mb-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                        <div className="text-sm text-gray-400">Clean</div>
+                      </div>
+                      <div className="text-3xl font-bold text-green-400">
+                        {analysisResults.virustotal_result.last_analysis_stats?.undetected || 0}
+                      </div>
+                      <div className="text-sm text-green-300">Undetected</div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-800/50 rounded-lg p-4 border border-blue-500/30">
+                    <div className="flex items-center mb-3">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div>
+                      <div className="text-sm text-gray-400">Analysis Summary</div>
+                    </div>
+                    <div className="text-white mb-3">
+                      {analysisResults.virustotal_result.cached ? (
+                        <div className="flex items-center">
+                          <span className="text-blue-400 mr-2">📋</span>
+                          <span>Cached result from VirusTotal database</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center">
+                          <span className="text-green-400 mr-2">🆕</span>
+                          <span>Fresh scan completed</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-300">
+                      <span className="text-gray-400">SHA256:</span> 
+                      <code className="bg-gray-700 px-2 py-1 rounded text-xs ml-2">
+                        {analysisResults.virustotal_result.sha256?.substring(0, 16)}...
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-gray-400 text-center py-8">
+                  <HiExclamationTriangle className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
+                  <p className="text-lg mb-2">VirusTotal analysis unavailable</p>
+                  <p className="text-sm">{analysisResults.virustotal_result.error || 'API key not configured'}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1076,85 +1215,77 @@ const NewResultsSection = () => {
         </div>
 
         {/* Floating Navigation & Scroll to Top */}
-        <div className="fixed right-6 bottom-6 z-20 flex flex-col gap-3">
+        <div className="fixed right-4 bottom-4 z-20 flex flex-col items-center gap-4">
           {/* Quick Navigation */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden">
-            <div className="p-2">
-              <p className="text-xs text-gray-400 font-medium mb-2 px-2">
-                Quick Navigation
-              </p>
+          <div className="bg-gray-900/95 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden max-h-96 overflow-y-auto">
+            <div className="p-3">
+              <div className="flex items-center mb-2">
+                <HiCog className="w-3.5 h-3.5 text-teal-500 mr-2" />
+                <p className="text-xs text-gray-300 font-semibold">
+                  Quick Nav
+                </p>
+              </div>
               <div className="space-y-1">
                 <button
                   onClick={() => scrollToSection("verdict-card", 100)}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  title="View Verdict"
+                  className="w-full flex items-center px-2 py-2 text-xs text-gray-300 hover:bg-gray-800/50 hover:text-white rounded-lg transition-all duration-200 group"
+                  title="View Security Verdict"
                 >
-                  <BsShieldFillCheck className="w-4 h-4 mr-2 text-primary-500" />
-                  <span>Verdict</span>
+                  <BsShieldFillCheck className="w-3 h-3 mr-2 text-green-500 group-hover:text-green-400 transition-colors flex-shrink-0" />
+                  <span className="truncate">Verdict</span>
                 </button>
 
                 {warnings && warnings.length > 0 && (
                   <button
                     onClick={() => scrollToSection("warnings-section", 100)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                    title="View Warnings"
+                    className="w-full flex items-center px-2 py-2 text-xs text-gray-300 hover:bg-gray-800/50 hover:text-white rounded-lg transition-all duration-200 group"
+                    title="View Security Warnings"
                   >
-                    <HiExclamationTriangle className="w-4 h-4 mr-2 text-warning-500" />
-                    <span>Warnings</span>
+                    <HiExclamationTriangle className="w-3 h-3 mr-2 text-yellow-500 group-hover:text-yellow-400 transition-colors flex-shrink-0" />
+                    <span className="truncate">Warnings</span>
                   </button>
                 )}
 
-                <button
-                  onClick={() => scrollToSection("feature-analysis", 100)}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  title="View Technical Analysis"
-                >
-                  <HiCog className="w-4 h-4 mr-2 text-teal-500" />
-                  <span>Analysis</span>
-                </button>
-
-                {permissions_analysis && (
+                {security_indicators && (
                   <button
-                    onClick={() => scrollToSection("permissions-analysis", 100)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                    title="View Permissions"
+                    onClick={() => scrollToSection("security-indicators", 100)}
+                    className="w-full flex items-center px-2 py-2 text-xs text-gray-300 hover:bg-gray-800/50 hover:text-white rounded-lg transition-all duration-200 group"
+                    title="View Security Indicators"
                   >
-                    <HiShieldCheck className="w-4 h-4 mr-2 text-primary-500" />
-                    <span>Permissions</span>
+                    <HiShieldCheck className="w-3 h-3 mr-2 text-blue-500 group-hover:text-blue-400 transition-colors flex-shrink-0" />
+                    <span className="truncate">Indicators</span>
                   </button>
                 )}
 
-                {suspicious_apis_analysis && (
+                {analysisResults.virustotal_result && (
                   <button
-                    onClick={() => scrollToSection("apis-analysis", 100)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                    title="View APIs"
+                    onClick={() => scrollToSection("virustotal-analysis", 100)}
+                    className="w-full flex items-center px-2 py-2 text-xs text-gray-300 hover:bg-gray-800/50 hover:text-white rounded-lg transition-all duration-200 group"
+                    title="View VirusTotal Analysis"
                   >
-                    <HiCode className="w-4 h-4 mr-2 text-warning-500" />
-                    <span>APIs</span>
+                    <HiShieldCheck className="w-3 h-3 mr-2 text-green-500 group-hover:text-green-400 transition-colors flex-shrink-0" />
+                    <span className="truncate">VirusTotal</span>
                   </button>
                 )}
 
                 {ai_explanation && (
                   <button
                     onClick={() => scrollToSection("ai-explanation", 100)}
-                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    className="w-full flex items-center px-2 py-2 text-xs text-gray-300 hover:bg-gray-800/50 hover:text-white rounded-lg transition-all duration-200 group"
                     title="View AI Analysis"
                   >
-                    <HiCog className="w-4 h-4 mr-2 text-teal-500" />
-                    <span>AI Analysis</span>
+                    <HiCog className="w-3 h-3 mr-2 text-teal-500 group-hover:text-teal-400 transition-colors flex-shrink-0" />
+                    <span className="truncate">AI Analysis</span>
                   </button>
                 )}
 
                 <button
-                  onClick={() =>
-                    scrollToSection("recommendations-section", 100)
-                  }
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  title="View Recommendations"
+                  onClick={() => scrollToSection("recommendations-section", 100)}
+                  className="w-full flex items-center px-2 py-2 text-xs text-gray-300 hover:bg-gray-800/50 hover:text-white rounded-lg transition-all duration-200 group"
+                  title="View Security Recommendations"
                 >
-                  <HiShieldCheck className="w-4 h-4 mr-2 text-success-500" />
-                  <span>Recommendations</span>
+                  <HiShieldCheck className="w-3 h-3 mr-2 text-purple-500 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+                  <span className="truncate">Recommendations</span>
                 </button>
               </div>
             </div>
@@ -1163,10 +1294,10 @@ const NewResultsSection = () => {
           {/* Scroll to Top Button */}
           <button
             onClick={scrollToTop}
-            className="p-3 bg-primary-600 hover:bg-primary-700 text-white rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
+            className="w-10 h-10 bg-gray-800/80 hover:bg-gray-700/80 backdrop-blur-sm text-gray-300 hover:text-white rounded-full shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 group border border-gray-600/50 flex items-center justify-center"
             title="Scroll to Top"
           >
-            <HiArrowUp className="w-5 h-5" />
+            <HiArrowUp className="w-4 h-4 group-hover:scale-110 transition-transform" />
           </button>
         </div>
       </div>

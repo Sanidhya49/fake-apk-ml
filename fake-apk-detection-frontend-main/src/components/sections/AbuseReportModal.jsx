@@ -369,7 +369,7 @@ const AbuseReportModal = ({ isOpen, onClose, preFilledFile = null }) => {
                     type="button"
                     onClick={handleClose}
                     disabled={isReportingAbuse}
-                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2 border border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
@@ -377,11 +377,11 @@ const AbuseReportModal = ({ isOpen, onClose, preFilledFile = null }) => {
                   <button
                     type="submit"
                     disabled={isReportingAbuse}
-                    className="flex-1 px-4 py-2 bg-danger-600 hover:bg-danger-700 disabled:bg-danger-400 text-white font-medium rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center"
+                    className="flex-1 px-4 py-2 border border-danger-400 dark:border-danger-500 bg-danger-100 dark:bg-danger-800 text-danger-700 dark:text-danger-300 font-medium rounded-lg hover:bg-danger-200 dark:hover:bg-danger-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {isReportingAbuse ? (
                       <>
-                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                        <div className="animate-spin w-4 h-4 border-2 border-danger-600 dark:border-danger-400 border-t-transparent rounded-full mr-2"></div>
                         Submitting Report...
                       </>
                     ) : (

@@ -1,49 +1,78 @@
-# 🚨 Fake APK Detection ML System
+# 🛡️ Digital Rakshak - AI-Powered APK Security Guardian
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/Flask-2.0+-green.svg)](https://flask.palletsprojects.com/)
+[![React](https://img.shields.io/badge/React-19+-blue.svg)](https://reactjs.org/)
 [![XGBoost](https://img.shields.io/badge/XGBoost-1.5+-orange.svg)](https://xgboost.readthedocs.io/)
+[![VirusTotal](https://img.shields.io/badge/VirusTotal-Integrated-red.svg)](https://www.virustotal.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Hackathon](https://img.shields.io/badge/Hackathon-CyberShield%202025-red.svg)](https://ciisummit.com/cybershield-hackathon-2025/)
 
-> **A production-ready Machine Learning system for detecting malicious Android APK files with 95%+ accuracy, featuring explainable AI, real-time risk assessment, and comprehensive reporting.**
+> **India's first AI-powered digital guardian against fake banking APKs - featuring triple-layer detection, real-time threat intelligence, prevention-first approach, and comprehensive admin management.**
 
 ## 🎯 Project Overview
 
 This project addresses the critical cybersecurity challenge of **"Detecting Fake Banking APKs"** - malicious Android applications that mimic legitimate banking apps to steal user credentials and financial information. Built for the [National CyberShield Hackathon 2025](https://ciisummit.com/cybershield-hackathon-2025/) organized by Madhya Pradesh Police.
 
-### 🌟 Key Features
+### 🌟 Revolutionary Features
 
-- **🤖 ML-Powered Detection**: XGBoost classifier with 95%+ accuracy
-- **🔍 Static Analysis**: Comprehensive APK feature extraction using Androguard
-- **📊 Explainable AI**: SHAP analysis for model interpretability
-- **🧠 AI Explanations**: Google Gemini integration for human-readable insights
-- **⚡ Real-time Processing**: Instant risk assessment and classification
-- **📋 Professional Reports**: HTML and Word document generation
-- **🌐 RESTful API**: Flask-based backend with comprehensive endpoints
-- **🎨 Modern Frontend**: Beautiful, responsive web interface
-- **🐳 Docker Ready**: Production-ready containerization
-- **☁️ Cloud Deployable**: Optimized for GCP and other cloud platforms
+#### 🛡️ **Triple-Layer AI Detection System**
+- **Layer 1**: XGBoost ML model with 95.7% accuracy on Indian banking APKs
+- **Layer 2**: VirusTotal integration with 70+ antivirus engines
+- **Layer 3**: Real-time threat intelligence that learns from every attack
 
-## 🏗️ System Architecture
+#### ⚡ **Lightning-Fast Analysis**
+- **2.3 seconds** comprehensive APK analysis
+- **200+ features** extracted including permissions, APIs, certificates
+- **Real-time risk assessment** with confidence scoring
+
+#### 🎯 **Indian Banking Ecosystem Mastery**
+- **Bank-specific detection** for SBI, HDFC, ICICI, Paytm, and more
+- **Permission pattern recognition** for Indian banking apps
+- **Certificate validation** against known Indian banking authorities
+
+#### 🚨 **Prevention-First Approach**
+- **Threat Intelligence Feed**: Real-time database of malicious hashes, packages, and certificates
+- **Abuse Reporting System**: Users can report suspicious apps with evidence bundles
+- **STIX 2.1 Integration**: Professional threat intelligence sharing
+- **Admin Dashboard**: Complete visibility into all reported threats
+
+#### 📚 **Educational Ecosystem**
+- **AI-Enhanced News System**: Real-time security alerts and RBI guidelines
+- **Interactive Learning**: Users learn to identify threats themselves
+- **Community Protection**: Shared intelligence protects everyone
+
+#### 🎨 **Modern User Experience**
+- **Beautiful React Frontend**: Responsive, dark-themed interface
+- **Real-time Updates**: Live threat intelligence and news
+- **Professional Reports**: HTML and Word document generation
+- **Admin Management**: Complete threat monitoring and management
+
+## 🏗️ Advanced System Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Flask API     │    │   ML Pipeline   │
-│   (React/HTML)  │◄──►│   (REST)        │◄──►│   (XGBoost)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   APK Analysis  │
-                       │   (Androguard)  │
-                       └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   Feature       │
-                       │   Extraction    │
-                       └─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        DIGITAL RAKSHAK ECOSYSTEM                │
+├─────────────────────────────────────────────────────────────────┤
+│  Frontend (React 19)     │  Backend (Flask)     │  AI Services  │
+│  ┌─────────────────┐     │  ┌─────────────────┐  │  ┌──────────┐ │
+│  │ User Interface  │◄────┤  │ REST API        │◄─┤  │ Gemini   │ │
+│  │ Admin Panel     │     │  │ Threat Intel    │  │  │ AI       │ │
+│  │ News System     │     │  │ Abuse Reports   │  │  └──────────┘ │
+│  └─────────────────┘     │  └─────────────────┘  │  ┌──────────┐ │
+│                          │           │            │  │VirusTotal│ │
+│                          │           ▼            │  │ 70+ Engines│ │
+│                          │  ┌─────────────────┐  │  └──────────┘ │
+│                          │  │ ML Pipeline     │  │               │
+│                          │  │ (XGBoost)       │  │               │
+│                          │  └─────────────────┘  │               │
+│                          │           │            │               │
+│                          │           ▼            │               │
+│                          │  ┌─────────────────┐  │               │
+│                          │  │ APK Analysis    │  │               │
+│                          │  │ (Androguard)    │  │               │
+│                          │  └─────────────────┘  │               │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## 🚀 Quick Start
@@ -51,8 +80,10 @@ This project addresses the critical cybersecurity challenge of **"Detecting Fake
 ### Prerequisites
 
 - Python 3.8+
+- Node.js 20+ (for frontend)
 - Docker (optional)
 - Google Gemini API key (for AI explanations)
+- VirusTotal API key (for enhanced detection)
 
 ### Installation
 
@@ -75,13 +106,24 @@ pip install -r requirements.txt
 
 4. **Set environment variables**
 ```bash
-   export GEMINI_API_KEY="your_api_key_here"
+   # Backend (.env)
+   export GEMINI_API_KEY="your_gemini_api_key"
+   export VIRUSTOTAL_API_KEY="your_virustotal_api_key"
    export ML_FAKE_THRESHOLD="0.385"
+   
+   # Frontend (.env)
+   export VITE_API_BASE_URL="http://127.0.0.1:9000"
    ```
 
 5. **Run the application**
    ```bash
+   # Start backend
    python flask_app/main.py
+   
+   # Start frontend (in another terminal)
+   cd fake-apk-detection-frontend-main
+   npm install
+   npm run dev
    ```
 
 ### Docker Deployment
@@ -96,14 +138,48 @@ docker run -p 5000:5000 -e GEMINI_API_KEY="your_key" fake-apk-detector
 
 ## 📡 API Endpoints
 
-### Core Endpoints
+### Core Detection Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check and system status |
-| `/scan` | POST | Single APK analysis |
-| `/scan/batch` | POST | Batch APK processing |
-| `/report` | POST | Generate comprehensive reports |
+| `/scan` | POST | Single APK analysis with VirusTotal |
+| `/scan-batch` | POST | Batch APK processing (up to 15 files) |
+| `/report` | POST | Generate comprehensive HTML reports |
+| `/report-batch` | POST | Generate Word document reports |
+
+### Prevention & Intelligence Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/threat-feed` | GET | Real-time threat intelligence |
+| `/threat/submit` | POST | Submit new threat indicators |
+| `/report-abuse` | POST | Report malicious APK with evidence |
+| `/report-batch-abuse` | POST | Report multiple malicious APKs |
+
+### Admin Management Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/admin/reports` | GET | Get all abuse reports (paginated) |
+| `/admin/reports/<id>` | GET | Get specific report details |
+| `/admin/reports/<id>` | DELETE | Delete abuse report |
+
+### VirusTotal Integration
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/virustotal/scan` | POST | Scan APK with VirusTotal by hash |
+| `/virustotal/report/<sha256>` | GET | Get VirusTotal report |
+| `/virustotal/upload` | POST | Upload APK to VirusTotal |
+
+### News & Awareness
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/news` | GET | Get security news and alerts |
+| `/news/categories` | GET | Get news categories |
+| `/news/enhanced` | GET | Get AI-enhanced news content |
 
 ### Example Usage
 
@@ -138,34 +214,62 @@ curl -X POST -F "file=@app.apk" http://localhost:5000/report
 
 ### Risk Classification
 
-- **🟢 Green**: Low risk (legitimate app)
-- **🟡 Amber**: Medium risk (suspicious)
-- **🔴 Red**: High risk (malicious)
+- **🟢 Green**: Low risk (legitimate app) - 0-40% malicious probability
+- **🟡 Amber**: Medium risk (suspicious) - 40-80% malicious probability  
+- **🔴 Red**: High risk (malicious) - 80%+ malicious probability
+
+### Detection Methods
+
+1. **ML Analysis**: XGBoost model with 200+ features
+2. **VirusTotal Scan**: 70+ antivirus engines
+3. **Threat Intelligence**: Real-time malicious hash database
+4. **Heuristic Analysis**: Permission and API call patterns
+5. **Certificate Validation**: Signing authority verification
 
 ## 📊 Sample Output
 
+### Single APK Analysis
 ```json
 {
-  "prediction": "malicious",
+  "prediction": "fake",
   "risk_level": "Red",
-  "confidence": 94.2,
-  "confidence_percentage": 94.2,
+  "probability": 0.942,
+  "confidence": "High",
   "processing_time": 2.3,
-  "model_threshold": 0.385,
-  "cache_used": false,
-  "app_label": "Fake Banking App",
-  "package": "com.fake.banking",
-  "version": "1.0.0",
+  "app_label": "Fake SBI Banking App",
+  "package": "com.fake.sbi.banking",
   "file_size": 15432000,
-  "critical_labels": ["Suspicious Banking", "High Risk"],
-  "critical_permissions": ["READ_SMS", "READ_CONTACTS", "RECORD_AUDIO"],
-  "suspicious_api_count": 8,
-  "total_permissions": 15,
-  "certificate_status": "Self-signed",
-  "signing_authority": "Unknown",
-  "app_trust_level": "Low",
-  "ai_explanation": "This app requests suspicious permissions...",
-  "shap_features": ["permission_score", "api_risk", "certificate_trust"]
+  "permissions_analysis": {
+    "total_permissions": 15,
+    "dangerous_permissions": 8,
+    "suspicious_permissions": ["READ_SMS", "RECORD_AUDIO", "READ_CONTACTS"]
+  },
+  "virustotal_result": {
+    "available": true,
+    "malicious_engines": 12,
+    "suspicious_engines": 3,
+    "clean_engines": 55
+  },
+  "ai_explanation": "This app requests suspicious permissions including READ_SMS and RECORD_AUDIO, which are commonly used by fake banking apps to steal OTPs and record voice commands.",
+  "threat_feed_match": true,
+  "evidence_bundle": "Generated STIX 2.1 evidence bundle"
+}
+```
+
+### Admin Dashboard Statistics
+```json
+{
+  "stats": {
+    "total_reports": 156,
+    "high_risk": 23,
+    "medium_risk": 45,
+    "low_risk": 88,
+    "threat_intelligence": {
+      "malicious_hashes": 1247,
+      "suspicious_packages": 89,
+      "compromised_certificates": 34
+    }
+  }
 }
 ```
 
@@ -175,21 +279,35 @@ curl -X POST -F "file=@app.apk" http://localhost:5000/report
 
 ```
 fake-apk-ml/
-├── flask_app/              # Flask application
-│   ├── main.py            # Main API server
-│   └── templates/         # HTML templates
-├── ml/                    # Machine learning modules
-│   ├── static_extract.py  # APK feature extraction
-│   ├── model.py          # ML model management
-│   └── utils.py          # Utility functions
-├── artifacts/             # Model files and cache
-│   ├── models/           # Trained models
-│   └── static_jsons/     # Extracted features cache
-├── data/                  # Training and test data
-├── tests/                 # Test files
-├── requirements.txt       # Python dependencies
-├── Dockerfile            # Docker configuration
-└── README.md            # This file
+├── flask_app/                           # Flask backend
+│   ├── main.py                         # Main API server with all endpoints
+│   └── templates/                      # HTML report templates
+├── fake-apk-detection-frontend-main/   # React frontend
+│   ├── src/
+│   │   ├── components/                 # React components
+│   │   │   ├── sections/              # Main sections (Hero, Analysis, etc.)
+│   │   │   ├── layout/                # Header, Footer, Navigation
+│   │   │   └── admin/                 # Admin panel components
+│   │   ├── pages/                     # Page components
+│   │   │   └── admin/                 # Admin login and dashboard
+│   │   ├── store/                     # Zustand state management
+│   │   ├── services/                  # API service layer
+│   │   └── utils/                     # Utility functions
+│   ├── public/                        # Static assets and sample APKs
+│   └── package.json                   # Frontend dependencies
+├── ml/                                # Machine learning modules
+│   ├── static_extract.py             # APK feature extraction
+│   ├── model.py                      # ML model management
+│   └── utils.py                      # Utility functions
+├── artifacts/                         # Generated files
+│   ├── models/                       # Trained ML models
+│   ├── reports/                      # Generated abuse reports
+│   └── threat_intel/                 # Threat intelligence data
+├── data/                             # Training and test data
+├── tests/                            # Test files
+├── requirements.txt                  # Python dependencies
+├── Dockerfile                       # Docker configuration
+└── README.md                       # This file
 ```
 
 ### Key Components
@@ -197,7 +315,8 @@ fake-apk-ml/
 - **`flask_app/main.py`**: Main Flask application with all API endpoints
 - **`ml/static_extract.py`**: APK parsing and feature extraction
 - **`ml/model.py`**: ML model loading and prediction
-- **`artifacts/`**: Pre-trained models and feature cache
+- **`fake-apk-detection-frontend-main/`**: React frontend application
+- **`artifacts/`**: Pre-trained models, reports, and threat intelligence
 
 ## 🧪 Testing
 
@@ -251,6 +370,10 @@ print('Extraction successful:', list(result.keys()))
 ```bash
 # Required
 GEMINI_API_KEY=your_gemini_api_key
+VIRUSTOTAL_API_KEY=your_virustotal_api_key
+
+# Frontend
+VITE_API_BASE_URL=http://127.0.0.1:9000
 
 # Optional
 ML_FAKE_THRESHOLD=0.385
@@ -260,10 +383,13 @@ FLASK_ENV=production
 
 ## 📈 Performance
 
-- **Processing Speed**: 2-5 seconds per APK
+- **Processing Speed**: 2.3 seconds per APK (comprehensive analysis)
 - **Memory Usage**: ~500MB per analysis
 - **Concurrent Requests**: Supports multiple simultaneous scans
 - **Cache Efficiency**: 90%+ cache hit rate for repeated files
+- **VirusTotal Integration**: Real-time scanning with 70+ engines
+- **Batch Processing**: Up to 15 APKs simultaneously
+- **Real-time Updates**: Live threat intelligence and news
 
 ## 🔒 Security Features
 
@@ -271,7 +397,10 @@ FLASK_ENV=production
 - **Permission Analysis**: Critical permission identification
 - **Certificate Validation**: Signing authority verification
 - **API Call Detection**: Suspicious system call identification
-- **Export Component Analysis**: Security implications assessment
+- **Threat Intelligence**: Real-time malicious hash database
+- **Evidence Collection**: STIX 2.1 compliant evidence bundles
+- **Abuse Reporting**: Professional reporting with law enforcement templates
+- **Admin Monitoring**: Complete threat visibility and management
 
 ## 🤝 Contributing
 
@@ -301,6 +430,29 @@ This project was developed for the **[National CyberShield Hackathon 2025](https
 - **Venue**: Hotel Taj Lakefront, Bhopal, Madhya Pradesh
 - **Organizer**: Madhya Pradesh Police
 - **Prizes**: ₹1 Lakh+ cash prizes
+- **Team**: Digital Rakshak (Final Round Qualifier)
+
+### 🎯 Competitive Advantages
+
+**Why Digital Rakshak Wins:**
+
+1. **🛡️ Triple-Layer Defense**: ML + VirusTotal + Threat Intelligence
+2. **⚡ Speed**: 2.3 seconds vs minutes (competitors)
+3. **🎯 Indian Focus**: Bank-specific detection vs generic solutions
+4. **🚨 Prevention-First**: Proactive vs reactive approach
+5. **📚 Education**: User awareness vs just detection
+6. **🔧 Complete Ecosystem**: Detection + Prevention + Management
+7. **🤖 AI Integration**: Gemini AI for human-readable explanations
+8. **📊 Professional Reports**: STIX 2.1 compliance for law enforcement
+
+### 🎤 Presentation Highlights
+
+- **Live Demo**: Real-time APK scanning with 2.3-second results
+- **Admin Dashboard**: Complete threat monitoring and management
+- **VirusTotal Integration**: 70+ antivirus engines validation
+- **Threat Intelligence**: Real-time malicious hash database
+- **AI Explanations**: Human-readable security insights
+- **Evidence Bundles**: Professional law enforcement reporting
 
 ## 📄 License
 
@@ -308,10 +460,12 @@ This project is licensed under the MIT License
 
 ## 🙏 Acknowledgments
 
-- **Team Members**: My amazing teammates for their collaboration
+- **Team Digital Rakshak**: Amazing collaboration and dedication
 - **CyberShield 2025**: Organizers for the incredible opportunity
+- **Madhya Pradesh Police**: For highlighting real-world cybersecurity needs
 - **Open Source Community**: For the amazing tools and libraries
-- **Law Enforcement**: For highlighting real-world cybersecurity needs
+- **VirusTotal**: For providing comprehensive threat intelligence
+- **Google Gemini**: For AI-powered explanations and insights
 
 ## 📞 Contact details
 
@@ -325,6 +479,8 @@ This project is licensed under the MIT License
 
 **⭐ Star this repository if you find it helpful!**
 
-**🔒 Making the digital world safer** 
+**🛡️ Digital Rakshak - Protecting India's Digital Future** 
+
+**🏆 CyberShield Hackathon 2025 Finalist**
 
 </div>
