@@ -445,7 +445,7 @@ This project was developed for the **[National CyberShield Hackathon 2025](https
 7. **🤖 AI Integration**: Gemini AI for human-readable explanations
 8. **📊 Professional Reports**: STIX 2.1 compliance for law enforcement
 
-### 🎤 Presentation Highlights
+### Presentation Highlights
 
 - **Live Demo**: Real-time APK scanning with 2.3-second results
 - **Admin Dashboard**: Complete threat monitoring and management
